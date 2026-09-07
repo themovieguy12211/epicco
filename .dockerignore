@@ -1,0 +1,24 @@
+# Local runtime data and dev artifacts — keep these out of the image.
+.git
+.github
+.vscode
+.idea
+
+# Composer will install dependencies fresh in the image.
+vendor
+
+# Local runtime storage (uploads, logs, cache, sessions) must not be baked in.
+storage
+
+# Local test/dev noise.
+tests
+node_modules
+
+# Build tooling itself.
+Dockerfile
+Dockerfile.*
+.dockerignore
+
+# Misc.
+*.md
+.gitignore

@@ -1,0 +1,42 @@
+# Example: add ffmpeg (and ffprobe) to a PHP image for fyuhls video transcoding.
+#
+# fyuhls expects ffmpeg at a path you configure in:
+#   Admin -> Config Hub -> General -> FFmpeg Path  (video.ffmpeg_path)
+#
+# The common defaults are:
+#   Debian/Ubuntu: /usr/bin/ffmpeg
+#   Alpine:        /usr/local/bin/ffmpeg
+#
+# Then enable transcoding under:
+#   Admin -> Config Hub -> Downloads -> Video Transcoding (HLS)
+
+# ---------------------------------------------------------------------------
+# Option 1 - Debian/Ubuntu based PHP image
+# ---------------------------------------------------------------------------
+# FROM php:8.3-fpm
+# RUN apt-get update \
+#     && apt-get install -y --no-install-recommends ffmpeg \
+#     && rm -rf /var/lib/apt/lists/*
+# # php:8.3-fpm already ships the extensions fyuhls needs, but confirm:
+# #   pdo_mysql, curl, mbstring, zip, gd, fileinfo
+
+# ---------------------------------------------------------------------------
+# Option 2 - Alpine based PHP image (smaller)
+# ---------------------------------------------------------------------------
+# FROM php:8.3-fpm-alpine
+# RUN apk add --no-cache ffmpeg
+# # Also add the PHP extensions fyuhls needs, for example:
+# #   apk add --no-cache libzip-dev libpng-dev \
+# #   && docker-php-ext-install pdo_mysql zip gd
+
+# ---------------------------------------------------------------------------
+# Option 3 - If you already have a custom Dockerfile, just add the ffmpeg line
+# ---------------------------------------------------------------------------
+# Debian/Ubuntu:
+#   RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg
+# Alpine:
+#   RUN apk add --no-cache ffmpeg
+
+# Verification (run once inside the container):
+#   which ffmpeg ffprobe
+#   ffmpeg -version | head -n 1

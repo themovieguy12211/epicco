@@ -1,0 +1,369 @@
+<?php
+$seoTab = $seoTab ?? 'overview';
+$score = (int)($seoHealth['score'] ?? 0);
+$rating = $seoHealth['rating'] ?? 'Needs Work';
+$robotsUrl = \App\Service\SeoService::trustedBaseUrl() . '/robots.txt';
+$sitemapUrl = \App\Service\SeoService::trustedBaseUrl() . '/sitemap.xml';
+$siteName = \App\Model\Setting::getOrConfig('app.name', \App\Core\Config::get('app_name', 'Fyuhls'));
+$seoDefaults = [
+    'title_template' => '%page_title% | %site_name%',
+    'default_meta_description' => 'Self-hosted file hosting platform with package controls, storage backends, admin tooling, and optional rewards.',
+    'canonical_base_url' => \App\Service\SeoService::detectInstallBaseUrl(),
+    'default_social_image' => '/assets/img/share-banner.jpg',
+    'organization_name' => $siteName,
+    'home_title' => $siteName . ' | Self-Hosted File Hosting',
+    'home_description' => 'Launch a self-hosted file hosting platform with package controls, storage backends, direct links, admin tooling, and optional rewards.',
+    'home_h1' => $siteName,
+    'home_intro' => 'Self-hosted file hosting with package controls, flexible storage providers, admin tooling, and optional monetization features.',
+    'file_title_template' => '%filename% - Download | %site_name%',
+    'file_description_template' => 'Download %filename% on %site_name%.',
+];
+?>
+
+<div class="config-section-shell">
+    <div class="config-section-nav">
+        <div class="config-section-nav__eyebrow">SEO Sections</div>
+        <div class="nav flex-column nav-pills">
+            <button class="nav-link text-start <?= $seoTab === 'overview' ? 'active' : '' ?>" data-nav-url="?tab=seo&seo_tab=overview">
+                <i class="bi bi-speedometer2 me-2"></i> Overview
+            </button>
+            <button class="nav-link text-start <?= $seoTab === 'general' ? 'active' : '' ?>" data-nav-url="?tab=seo&seo_tab=general">
+                <i class="bi bi-sliders me-2"></i> General
+            </button>
+            <button class="nav-link text-start <?= $seoTab === 'homepage' ? 'active' : '' ?>" data-nav-url="?tab=seo&seo_tab=homepage">
+                <i class="bi bi-house-door me-2"></i> Homepage
+            </button>
+            <button class="nav-link text-start <?= $seoTab === 'templates' ? 'active' : '' ?>" data-nav-url="?tab=seo&seo_tab=templates">
+                <i class="bi bi-file-earmark-richtext me-2"></i> Templates
+            </button>
+            <button class="nav-link text-start <?= $seoTab === 'indexing' ? 'active' : '' ?>" data-nav-url="?tab=seo&seo_tab=indexing">
+                <i class="bi bi-diagram-3 me-2"></i> Indexing
+            </button>
+            <button class="nav-link text-start <?= $seoTab === 'verification' ? 'active' : '' ?>" data-nav-url="?tab=seo&seo_tab=verification">
+                <i class="bi bi-patch-check me-2"></i> Verification
+            </button>
+        </div>
+    </div>
+    <div class="config-section-content">
+        <div class="config-section-intro">
+            <div>
+                <h5 class="config-section-intro__title">SEO</h5>
+                <p class="config-section-intro__text">Tune the metadata, sitemap, verification, and file-page templates that search engines actually see, without digging through code or static template files.</p>
+            </div>
+            <ul class="config-summary-chips">
+                <li class="config-summary-chip <?= $score >= 90 ? 'config-summary-chip--success' : ($score >= 55 ? 'config-summary-chip--warning' : 'config-summary-chip--danger') ?>">Score: <?= $score ?></li>
+                <li class="config-summary-chip config-summary-chip--info">Rating: <?= htmlspecialchars($rating) ?></li>
+                <li class="config-summary-chip config-summary-chip--info">Sitemap: <?= ($seoConfig['seo_sitemap_enabled'] ?? '1') === '1' ? 'On' : 'Off' ?></li>
+            </ul>
+        </div>
+        <details class="config-help-panel">
+            <summary>How this works</summary>
+            <div class="config-help-panel__body">
+                <p>Fyuhls focuses its SEO controls on the things the app can safely own directly: titles, descriptions, canonicals, indexing rules, sitemap output, and verification tokens. This keeps the surface practical and avoids burying operators in theme-level markup.</p>
+            </div>
+        </details>
+        <div>
+            <?php if ($seoTab === 'overview'): ?>
+                <div class="row g-4 mb-4">
+                    <div class="col-lg-5">
+                        <div class="card border-0 shadow-sm h-100 config-section-card">
+                            <div class="card-body">
+                                <span class="text-uppercase small text-muted fw-bold">SEO Health Score</span>
+                                <div class="display-4 fw-bold mt-2 mb-2"><?= $score ?></div>
+                                <div class="badge <?= $score >= 90 ? 'bg-success' : ($score >= 75 ? 'bg-primary' : ($score >= 55 ? 'bg-warning text-dark' : 'bg-danger')) ?>">
+                                    <?= htmlspecialchars($rating) ?>
+                                </div>
+                                <p class="small text-muted mt-3 mb-0">
+                                    This score focuses on what the script can control directly: titles, descriptions, sitemap, robots rules, structured data, and verification readiness.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-7">
+                        <div class="card border-0 shadow-sm h-100 config-section-card">
+                            <div class="card-body">
+                                <h5 class="fw-bold mb-3">Quick Status</h5>
+                                <div class="row g-3">
+                                    <?php foreach (($seoHealth['checks'] ?? []) as $label => $value): ?>
+                                        <div class="col-md-6">
+                                            <div class="config-soft-callout h-100">
+                                                <div class="small text-uppercase text-muted fw-bold mb-1"><?= htmlspecialchars($label) ?></div>
+                                                <div class="fw-semibold"><?= htmlspecialchars($value) ?></div>
+                                            </div>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm mb-4 config-section-card">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">Priority Issues</h5>
+                        <?php if (!empty($seoHealth['issues'])): ?>
+                            <div class="list-group list-group-flush">
+                                <?php foreach ($seoHealth['issues'] as $issue): ?>
+                                    <?php
+                                    $badgeClass = match ($issue['severity']) {
+                                        'critical' => 'bg-danger',
+                                        'high' => 'bg-warning text-dark',
+                                        'medium' => 'bg-primary',
+                                        default => 'bg-secondary',
+                                    };
+                                    ?>
+                                    <div class="list-group-item px-0 py-3">
+                                        <div class="d-flex justify-content-between align-items-start gap-3">
+                                            <div>
+                                                <div class="fw-bold mb-1"><?= htmlspecialchars($issue['title']) ?></div>
+                                                <div class="small text-muted"><?= htmlspecialchars($issue['description']) ?></div>
+                                            </div>
+                                            <span class="badge <?= $badgeClass ?> text-uppercase"><?= htmlspecialchars($issue['severity']) ?></span>
+                                        </div>
+                                    </div>
+                                <?php endforeach; ?>
+                            </div>
+                        <?php else: ?>
+                            <div class="config-soft-callout config-soft-callout--success mb-0">No immediate SEO issues detected in the settings layer.</div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm config-section-card">
+                    <div class="card-body">
+                        <h5 class="fw-bold mb-3">Recommended Launch Order</h5>
+                        <ol class="small text-muted mb-0 ps-3">
+                            <li class="mb-2">Set the canonical base URL to your production domain.</li>
+                            <li class="mb-2">Write a homepage title and description that target your main phrase.</li>
+                            <li class="mb-2">Enable the XML sitemap and keep auth pages blocked from indexing.</li>
+                            <li class="mb-2">Configure file-page title and description templates before public file pages start getting crawled.</li>
+                            <li>Add Search Console verification so you can submit the sitemap and watch indexing issues directly.</li>
+                        </ol>
+                    </div>
+                </div>
+            <?php elseif ($seoTab === 'general'): ?>
+                <form method="POST" action="/admin/configuration/save">
+                    <?= \App\Core\Csrf::field() ?>
+                    <input type="hidden" name="section" value="seo">
+                    <input type="hidden" name="seo_scope" value="general">
+
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label fw-bold">Title Template</label>
+                            <input type="text" class="form-control" name="seo_title_template" value="<?= htmlspecialchars(trim((string)$seoConfig['seo_title_template']) !== '' ? $seoConfig['seo_title_template'] : $seoDefaults['title_template']) ?>" placeholder="<?= htmlspecialchars($seoDefaults['title_template']) ?>">
+                            <small class="text-muted">Use variables like <code>%page_title%</code> and <code>%site_name%</code>. Recommended default: <code><?= htmlspecialchars($seoDefaults['title_template']) ?></code>.</small>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label fw-bold">Canonical Base URL</label>
+                            <input type="url" class="form-control" name="seo_canonical_base_url" value="<?= htmlspecialchars(trim((string)$seoConfig['seo_canonical_base_url']) !== '' ? $seoConfig['seo_canonical_base_url'] : $seoDefaults['canonical_base_url']) ?>" placeholder="https://example.com">
+                            <small class="text-muted">The production URL used for canonical tags, sitemap URLs, and robots.txt. If you leave this blank in storage, the script auto-detects the current install URL from the live request.</small>
+                            <div class="small text-muted mt-1">Detected from this install: <code><?= htmlspecialchars(\App\Service\SeoService::detectInstallBaseUrl()) ?></code></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Default Meta Description</label>
+                        <textarea class="form-control" name="seo_default_meta_description" rows="3" placeholder="<?= htmlspecialchars($seoDefaults['default_meta_description']) ?>"><?= htmlspecialchars(trim((string)$seoConfig['seo_default_meta_description']) !== '' ? $seoConfig['seo_default_meta_description'] : $seoDefaults['default_meta_description']) ?></textarea>
+                        <small class="text-muted">Fallback summary used when a public page does not define its own description. Recommended default: <?= htmlspecialchars($seoDefaults['default_meta_description']) ?></small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <label class="form-label fw-bold">Default Meta Robots</label>
+                            <select class="form-select" name="seo_default_robots">
+                                <?php foreach (['index,follow', 'index,nofollow', 'noindex,follow', 'noindex,nofollow'] as $robotsValue): ?>
+                                    <option value="<?= $robotsValue ?>" <?= $seoConfig['seo_default_robots'] === $robotsValue ? 'selected' : '' ?>><?= $robotsValue ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <label class="form-label fw-bold">Default Social Image URL</label>
+                            <input type="text" class="form-control" name="seo_default_social_image" value="<?= htmlspecialchars(trim((string)$seoConfig['seo_default_social_image']) !== '' ? $seoConfig['seo_default_social_image'] : $seoDefaults['default_social_image']) ?>" placeholder="<?= htmlspecialchars($seoDefaults['default_social_image']) ?>">
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <label class="form-label fw-bold">Organization / Site Name</label>
+                            <input type="text" class="form-control" name="seo_organization_name" value="<?= htmlspecialchars(trim((string)$seoConfig['seo_organization_name']) !== '' ? $seoConfig['seo_organization_name'] : $seoDefaults['organization_name']) ?>" placeholder="<?= htmlspecialchars($seoDefaults['organization_name']) ?>">
+                        </div>
+                    </div>
+
+                    <div class="config-sticky-save">
+                        <p class="config-sticky-save__text">General SEO changes affect canonicals, fallback descriptions, and social metadata across the public site.</p>
+                        <button type="submit" class="btn btn-primary px-4">Save General SEO Settings</button>
+                    </div>
+                </form>
+            <?php elseif ($seoTab === 'homepage'): ?>
+                <form method="POST" action="/admin/configuration/save">
+                    <?= \App\Core\Csrf::field() ?>
+                    <input type="hidden" name="section" value="seo">
+                    <input type="hidden" name="seo_scope" value="homepage">
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Homepage SEO Title</label>
+                        <input type="text" class="form-control" name="seo_home_title" value="<?= htmlspecialchars(trim((string)$seoConfig['seo_home_title']) !== '' ? $seoConfig['seo_home_title'] : $seoDefaults['home_title']) ?>" placeholder="<?= htmlspecialchars($seoDefaults['home_title']) ?>">
+                        <small class="text-muted">Best used for your main keyword target, for example "PHP File Hosting Script | YourBrand". Recommended starter: <?= htmlspecialchars($seoDefaults['home_title']) ?></small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Homepage Meta Description</label>
+                        <textarea class="form-control" name="seo_home_description" rows="3" placeholder="<?= htmlspecialchars($seoDefaults['home_description']) ?>"><?= htmlspecialchars(trim((string)$seoConfig['seo_home_description']) !== '' ? $seoConfig['seo_home_description'] : $seoDefaults['home_description']) ?></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label fw-bold">Homepage H1 Override</label>
+                            <input type="text" class="form-control" name="seo_home_h1" value="<?= htmlspecialchars(trim((string)$seoConfig['seo_home_h1']) !== '' ? $seoConfig['seo_home_h1'] : $seoDefaults['home_h1']) ?>" placeholder="<?= htmlspecialchars($seoDefaults['home_h1']) ?>">
+                            <small class="text-muted">Optional. If filled, this replaces the default landing-page headline.</small>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label fw-bold">Homepage Intro Override</label>
+                            <textarea class="form-control" name="seo_home_intro" rows="3" placeholder="<?= htmlspecialchars($seoDefaults['home_intro']) ?>"><?= htmlspecialchars(trim((string)$seoConfig['seo_home_intro']) !== '' ? $seoConfig['seo_home_intro'] : $seoDefaults['home_intro']) ?></textarea>
+                            <small class="text-muted">Optional. Use this for a stronger opening paragraph tied to your real keyword target.</small>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <label class="form-label fw-bold">Homepage Robots</label>
+                            <select class="form-select" name="seo_home_robots">
+                                <?php foreach (['index,follow', 'index,nofollow', 'noindex,follow', 'noindex,nofollow'] as $robotsValue): ?>
+                                    <option value="<?= $robotsValue ?>" <?= $seoConfig['seo_home_robots'] === $robotsValue ? 'selected' : '' ?>><?= $robotsValue ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="form-check form-switch mt-4">
+                                <input class="form-check-input" type="checkbox" name="seo_home_faq_schema" id="seoHomeFaqSchema" value="1" <?= $seoConfig['seo_home_faq_schema'] === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label fw-bold" for="seoHomeFaqSchema">Enable Homepage FAQ Schema</label>
+                                <div class="small text-muted mt-2">Adds FAQ JSON-LD to the page source for search engines. This does not visibly change the homepage design.</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="form-check form-switch mt-4">
+                                <input class="form-check-input" type="checkbox" name="seo_home_software_schema" id="seoHomeSoftwareSchema" value="1" <?= $seoConfig['seo_home_software_schema'] === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label fw-bold" for="seoHomeSoftwareSchema">Enable Homepage Software Schema</label>
+                                <div class="small text-muted mt-2">Adds SoftwareApplication JSON-LD to the page source for search engines. This does not visibly change the homepage design.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-soft-callout small mb-4">
+                        <strong>Preview idea:</strong> Keep the title tight and keyword-led, then use the H1 and intro to explain the main selling points without stuffing repeated phrases everywhere.
+                    </div>
+
+                    <div class="config-sticky-save">
+                        <p class="config-sticky-save__text">Homepage SEO shapes the main landing page that search engines and referral previews see first.</p>
+                        <button type="submit" class="btn btn-primary px-4">Save Homepage SEO</button>
+                    </div>
+                </form>
+            <?php elseif ($seoTab === 'templates'): ?>
+                <form method="POST" action="/admin/configuration/save">
+                    <?= \App\Core\Csrf::field() ?>
+                    <input type="hidden" name="section" value="seo">
+                    <input type="hidden" name="seo_scope" value="templates">
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Public File Page Title Template</label>
+                        <input type="text" class="form-control" name="seo_file_title_template" value="<?= htmlspecialchars(trim((string)$seoConfig['seo_file_title_template']) !== '' ? $seoConfig['seo_file_title_template'] : $seoDefaults['file_title_template']) ?>" placeholder="<?= htmlspecialchars($seoDefaults['file_title_template']) ?>">
+                        <small class="text-muted">Variables available: <code>%filename%</code>, <code>%site_name%</code>, <code>%page_title%</code>, <code>%version%</code>.</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Public File Page Description Template</label>
+                        <textarea class="form-control" name="seo_file_description_template" rows="3" placeholder="<?= htmlspecialchars($seoDefaults['file_description_template']) ?>"><?= htmlspecialchars(trim((string)$seoConfig['seo_file_description_template']) !== '' ? $seoConfig['seo_file_description_template'] : $seoDefaults['file_description_template']) ?></textarea>
+                    </div>
+
+                    <div class="form-check form-switch mb-4">
+                        <input class="form-check-input" type="checkbox" name="seo_file_noindex_private" id="seoFilePrivateNoindex" value="1" <?= $seoConfig['seo_file_noindex_private'] === '1' ? 'checked' : '' ?>>
+                        <label class="form-check-label fw-bold" for="seoFilePrivateNoindex">Noindex private or restricted file pages</label>
+                    </div>
+
+                    <div class="config-soft-callout small mb-4">
+                        <strong>Recommendation:</strong> Public file pages can drive traffic, but only if the filename pattern is useful. If your file names are random or thin, rely more on homepage and docs SEO until the public file inventory has enough quality.
+                    </div>
+
+                    <div class="config-sticky-save">
+                        <p class="config-sticky-save__text">Template changes affect every eligible public file page generated from these patterns.</p>
+                        <button type="submit" class="btn btn-primary px-4">Save Page Templates</button>
+                    </div>
+                </form>
+            <?php elseif ($seoTab === 'indexing'): ?>
+                <form method="POST" action="/admin/configuration/save">
+                    <?= \App\Core\Csrf::field() ?>
+                    <input type="hidden" name="section" value="seo">
+                    <input type="hidden" name="seo_scope" value="indexing">
+
+                    <div class="card border-0 shadow-sm mb-4 config-section-card">
+                        <div class="card-body">
+                            <div class="config-soft-callout config-soft-callout--info small mb-4">
+                                <strong>These are live URLs, not uploaded files:</strong> Fyuhls generates <code>/robots.txt</code> and <code>/sitemap.xml</code> dynamically when search engines request them.
+                                <div class="mt-2">
+                                    <a href="<?= htmlspecialchars($robotsUrl) ?>" target="_blank" rel="noopener noreferrer" class="me-3">Open robots.txt</a>
+                                    <a href="<?= htmlspecialchars($sitemapUrl) ?>" target="_blank" rel="noopener noreferrer">Open sitemap.xml</a>
+                                </div>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" name="seo_sitemap_enabled" id="seoSitemapEnabled" value="1" <?= $seoConfig['seo_sitemap_enabled'] === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label fw-bold" for="seoSitemapEnabled">Enable XML Sitemap</label>
+                                <div class="small text-muted mt-2">Turns on the live <code>/sitemap.xml</code> route so Google and other search engines can fetch your sitemap directly from the website URL.</div>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" name="seo_sitemap_include_files" id="seoSitemapFiles" value="1" <?= $seoConfig['seo_sitemap_include_files'] === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label fw-bold" for="seoSitemapFiles">Include public file pages in sitemap</label>
+                                <div class="small text-muted mt-2">Adds eligible public file pages into the live sitemap feed. Those URLs are built dynamically from your public file records.</div>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" name="seo_robots_block_auth_pages" id="seoBlockAuth" value="1" <?= $seoConfig['seo_robots_block_auth_pages'] === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label fw-bold" for="seoBlockAuth">Block auth pages from indexing</label>
+                                <div class="small text-muted mt-2">Adds auth-page rules to the live <code>/robots.txt</code> output and applies <code>noindex,nofollow</code> on login, register, and reset pages.</div>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="seo_noindex_internal_pages" id="seoNoindexInternal" value="1" <?= $seoConfig['seo_noindex_internal_pages'] === '1' ? 'checked' : '' ?>>
+                                <label class="form-check-label fw-bold" for="seoNoindexInternal">Noindex internal member pages</label>
+                                <div class="small text-muted mt-2">Keeps member-only utility pages like settings, notifications, trash, recent, and shared out of search results through robots rules and page-level meta tags.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="config-soft-callout small mb-4">
+                        <strong>Submitting to Google:</strong>
+                        <div class="mt-2">Submit <code><?= htmlspecialchars($sitemapUrl) ?></code> in Google Search Console. It does not need to exist as a physical file on disk as long as the URL loads valid XML.</div>
+                    </div>
+
+                    <div class="config-sticky-save">
+                        <p class="config-sticky-save__text">Indexing settings control the live sitemap, robots output, and noindex behavior on internal pages.</p>
+                        <button type="submit" class="btn btn-primary px-4">Save Indexing Rules</button>
+                    </div>
+                </form>
+            <?php elseif ($seoTab === 'verification'): ?>
+                <form method="POST" action="/admin/configuration/save">
+                    <?= \App\Core\Csrf::field() ?>
+                    <input type="hidden" name="section" value="seo">
+                    <input type="hidden" name="seo_scope" value="verification">
+
+                    <div class="row">
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label fw-bold">Google Search Console Verification</label>
+                            <input type="text" class="form-control" name="seo_verification_google" value="<?= htmlspecialchars($seoConfig['seo_verification_google']) ?>">
+                            <small class="text-muted">Paste the token value only, not the full meta tag.</small>
+                        </div>
+                        <div class="col-md-6 mb-4">
+                            <label class="form-label fw-bold">Bing Webmaster Verification</label>
+                            <input type="text" class="form-control" name="seo_verification_bing" value="<?= htmlspecialchars($seoConfig['seo_verification_bing']) ?>">
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label fw-bold">Custom Head Code</label>
+                        <textarea class="form-control font-monospace" name="seo_custom_head_code" rows="8"><?= htmlspecialchars($seoConfig['seo_custom_head_code']) ?></textarea>
+                        <small class="text-muted">Use this for analytics, extra verification tags, or advanced social metadata. Only paste code you trust. This is intentionally privileged and runs on the frontend. Keep it concise; large blocks are rejected.</small>
+                    </div>
+
+                    <div class="config-sticky-save">
+                        <p class="config-sticky-save__text">Verification tokens and custom head code are high-privilege frontend settings, so keep them concise and deliberate.</p>
+                        <button type="submit" class="btn btn-primary px-4">Save Verification and Scripts</button>
+                    </div>
+                </form>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
