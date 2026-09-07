@@ -1689,6 +1689,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     label: 'Image thumbnails',
                     note: 'Only image files with thumbnails generate embed code here.',
                 };
+            case 'embed':
+                return {
+                    label: 'Video embed codes',
+                    note: 'Iframe player codes for video files. Folders and non-video files are skipped.',
+                };
             case 'grouped':
                 return {
                     label: 'Grouped by folder',
@@ -1754,6 +1759,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (item.type === 'file' && thumb && String(item.mime || '').startsWith('image/')) {
                         lines.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(thumb)}" alt="${escapeHtml(safeName)}"></a>`);
                         lines.push(`[url=${url}][img]${thumb}[/img][/url]`);
+                    }
+                } else if (format === 'embed') {
+                    if (item.type === 'file' && String(item.mime || '').startsWith('video/') && item.shortId) {
+                        const embedUrl = `${baseUrl()}/embed/${encodeURIComponent(item.shortId)}`;
+                        lines.push(`<iframe src="${escapeHtml(embedUrl)}" width="640" height="360" frameborder="0" allowfullscreen scrolling="no"></iframe>`);
                     }
                 } else {
                     lines.push(url);

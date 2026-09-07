@@ -2859,6 +2859,62 @@ class FileController
         };
     }
 
+    public function embed(string $id)
+    {
+        // This is an embeddable player page, not the full download page. Override
+        // the app-wide frame restrictions so it can be iframed on other sites.
+        header_remove('X-Frame-Options');
+        header("Content-Security-Policy: default-src 'self'; frame-ancestors *; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; media-src 'self' blob: https: data:; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none';");
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+
+        $file = File::findPublicByShortId($id);
+        $hasEmbedUrl = is_array($file) && trim((string)($file['embed_url'] ?? '')) !== '';
+
+        if (!$file || (!$this->isVideoFile($file) && !$hasEmbedUrl)) {
+            http_response_code(404);
+            echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Video not found</title></head><body style="margin:0;background:#000;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:1rem">Video not found or not playable.</body></html>';
+            exit;
+        }
+
+        $package = Auth::check() ? Package::getUserPackage((int)Auth::id()) : Package::getGuestPackage();
+        $downloadPageService = new DownloadPageService();
+        $viewModel = $downloadPageService->buildShowViewModel($file, $package);
+
+        $streamingEligible = (bool)$viewModel['streamingEligible'];
+        $streamSessionId = null;
+        $streamUrl = null;
+        $hlsUrl = null;
+        $streamCsrf = Csrf::generate();
+
+        if ($streamingEligible) {
+            \App\Service\VideoTranscodeService::enqueueStoredFile($file);
+
+            $transcodeJob = \App\Service\VideoTranscodeService::findJobByStoredFileId((int)($file['stored_file_id'] ?? 0));
+            $hlsUrl = \App\Service\VideoTranscodeService::manifestUrl($transcodeJob);
+
+            $fraud = new \App\Service\RewardFraudService();
+            $fraud->ensureVisitorCookie();
+            $streamSession = $fraud->createDownloadSession($file, Auth::id() ? (int)Auth::id() : null, [], 'stream');
+            $streamSessionId = $streamSession['public_id'] ?? null;
+            if ($streamSessionId !== null && $hlsUrl === null) {
+                $streamUrl = (new DownloadManager())->generateSignedUrl((string)($file['short_id'] ?? $file['id']), $file['filename'], $streamSessionId, 'stream') . '&stream=1';
+            }
+        }
+
+        $displayMimeType = $this->resolveDisplayMimeType($file);
+
+        View::render('home/partials/embed_player.php', array_merge($viewModel, [
+            'file' => $file,
+            'package' => $package,
+            'hlsUrl' => $hlsUrl,
+            'streamUrl' => $streamUrl,
+            'displayMimeType' => $displayMimeType,
+            'streamSessionId' => $streamSessionId,
+            'streamCsrf' => $streamCsrf,
+            'blockAdblock' => !empty($package['block_adblock']),
+        ]));
+    }
+
     public function bulkCopy()
     {
         $this->checkAuth();

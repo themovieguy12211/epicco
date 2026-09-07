@@ -54,6 +54,17 @@ class DownloadPageService
             ];
         }
 
+        $isVideoFile = str_starts_with($this->resolveDisplayMimeType($file), 'video/');
+        $hasEmbedUrl = trim((string)($file['embed_url'] ?? '')) !== '';
+        if ($isVideoFile || $hasEmbedUrl) {
+            $embedUrl = $baseUrl . '/embed/' . rawurlencode((string)$file['short_id']);
+            $embedUrlHtml = htmlspecialchars($embedUrl, ENT_QUOTES, 'UTF-8');
+            $shareFields[] = [
+                'label' => 'Embed Code',
+                'value' => '<iframe src="' . $embedUrlHtml . '" width="640" height="360" frameborder="0" allowfullscreen scrolling="no"></iframe>',
+            ];
+        }
+
         return $shareFields;
     }
 

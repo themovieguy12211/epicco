@@ -1142,12 +1142,8 @@ class ConfigurationController
             $this->updateSetting('reserved_usernames', $_POST['reserved_usernames'] ?? 'administrator,admin,support', 'general');
             $this->updateSetting('admin_notification_email', $_POST['admin_notification_email'] ?? '', 'general');
             $this->updateSetting('show_powered_by_footer', isset($_POST['show_powered_by_footer']) ? '1' : '0', 'general');
-            if (array_key_exists('ffmpeg_enabled', $_POST)) {
-                $this->updateSetting('video.ffmpeg_enabled', isset($_POST['ffmpeg_enabled']) ? '1' : '0', 'general');
-            }
-            if (array_key_exists('ffmpeg_path', $_POST)) {
-                $this->updateSetting('video.ffmpeg_path', trim((string)($_POST['ffmpeg_path'] ?? '')), 'general');
-            }
+            $this->updateSetting('video.ffmpeg_enabled', isset($_POST['ffmpeg_enabled']) ? '1' : '0', 'general');
+            $this->updateSetting('video.ffmpeg_path', trim((string)($_POST['ffmpeg_path'] ?? '')), 'general');
             $this->logConfigChange('general', $before, $this->captureSettingSnapshot($settingKeys));
         });
         return true;

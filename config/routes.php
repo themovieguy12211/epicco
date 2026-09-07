@@ -103,6 +103,8 @@ $router->get('/file/{id}', [FileController::class, 'show']);
 $router->post('/file/generate-link', [FileController::class, 'generateLink']);
 $router->post('/file/rename', [FileController::class, 'rename']);
 $router->post('/file/update-embed', [FileController::class, 'updateEmbed']);
+$router->post('/file/stream-heartbeat', [FileController::class, 'streamHeartbeat']);
+$router->get('/embed/{id}', [FileController::class, 'embed']);
 $router->get('/download/{id}', [FileController::class, 'download']);
 $router->get('/download/{id}/{name:.+}', [FileController::class, 'download']);
 $router->get('/thumbnail/{hash:.+}', [FileController::class, 'thumbnail']);

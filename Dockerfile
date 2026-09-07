@@ -50,7 +50,7 @@ WORKDIR /app
 # transcoding, etc.) are committed and pushed to this repository, otherwise
 # the image will be built from stock fyuhls.
 # --------------------------------------------------
-RUN git clone --depth 1 --branch main https://github.com/themovieguy12211/fyuhls.git /app
+RUN git clone --depth 1 --branch master https://github.com/themovieguy12211/fyuhls.git /app
 
 # --------------------------------------------------
 # Configure fyuhls for piracy.cloud

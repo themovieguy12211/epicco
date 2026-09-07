@@ -12,13 +12,13 @@
         <div class="config-section-intro">
             <div>
                 <h5 class="config-section-intro__title">General</h5>
-                <p class="config-section-intro__text">Manage the core site identity, member-facing platform switches, and preview the media features planned for an upcoming release.</p>
+                <p class="config-section-intro__text">Manage the core site identity, member-facing platform switches, and the FFmpeg path used for video thumbnails and transcoding.</p>
             </div>
         </div>
         <details class="config-help-panel">
             <summary>How this works</summary>
             <div class="config-help-panel__body">
-                <p>These are the install-wide defaults that define what the site is called, whether new users can sign up, and what upcoming media capabilities are planned next. Thumbnail generation and video transcoding are intentionally held for a later release.</p>
+                <p>These are the install-wide defaults that define what the site is called and whether new users can sign up. The FFmpeg path configured here powers video thumbnails and HLS transcoding.</p>
             </div>
         </details>
 
@@ -120,15 +120,28 @@
 
     <div id="general-transcoding"></div>
     <?php renderAdminCardStart('Video Transcoding', ['cardClass' => 'border-0 shadow-sm mb-4 config-section-card']); ?>
-        <div class="config-soft-callout config-soft-callout--info">
-            <h6 class="fw-bold mb-2"><i class="bi bi-hourglass-split me-2"></i>Coming soon</h6>
-            <p class="mb-2">Server-side video transcoding is not available in this build yet.</p>
-            <p class="mb-0">We are intentionally holding both transcoding and thumbnail-generation controls until the underlying conversion workflow is ready for a later release.</p>
+        <div class="config-soft-callout config-soft-callout--info mb-4">
+            <p class="mb-1">FFmpeg powers video thumbnails and adaptive HLS transcoding. Set the full path to the binary (for example <code>/usr/bin/ffmpeg</code>).</p>
+            <p class="mb-0">Enable transcoding and choose the target quality under <strong>Downloads &rarr; Video Transcoding (HLS)</strong>.</p>
+        </div>
+
+        <div class="mb-4">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="ffmpeg_enabled" id="ffmpegEnabled" value="1" <?= ($ffmpegEnabled === '1') ? 'checked' : '' ?>>
+                <label class="form-check-label fw-bold" for="ffmpegEnabled">Enable FFmpeg</label>
+            </div>
+            <small class="config-form-note">Turns on FFmpeg-based media processing. Leave off if the binary is not available on this server.</small>
+        </div>
+
+        <div class="mb-0">
+            <label class="form-label fw-bold">FFmpeg Path</label>
+            <input type="text" class="form-control font-monospace" name="ffmpeg_path" value="<?= htmlspecialchars((string)($ffmpegPath ?? '')) ?>" placeholder="/usr/bin/ffmpeg">
+            <small class="config-form-note">Full filesystem path to the <code>ffmpeg</code> binary. Leave empty to disable.</small>
         </div>
     <?php renderAdminCardEnd(); ?>
 
     <div class="config-sticky-save">
-        <p class="config-sticky-save__text">General settings control the install-wide defaults most users feel first, while the media sections above preview the thumbnail and transcoding features planned for a future release.</p>
+        <p class="config-sticky-save__text">General settings control the install-wide defaults most users feel first, including the FFmpeg path used for media processing.</p>
         <button type="submit" class="btn btn-primary px-5">
             <i class="bi bi-save me-2"></i> Save General Configuration
         </button>

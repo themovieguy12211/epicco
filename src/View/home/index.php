@@ -909,6 +909,7 @@ $uploadLimitText = $packageSchemaUnavailable
                 <button type="button" class="bulk-tools-tab" data-link-format="html">HTML links<small>Ready for websites and blogs</small></button>
                 <button type="button" class="bulk-tools-tab" data-link-format="bbcode">BBCode links<small>Ready for forums</small></button>
                 <button type="button" class="bulk-tools-tab" data-link-format="thumbs">Image thumbnails<small>Embed code for image files</small></button>
+                <button type="button" class="bulk-tools-tab" data-link-format="embed">Video embeds<small>Iframe player codes for videos</small></button>
                 <button type="button" class="bulk-tools-tab" data-link-format="grouped">Grouped by folder<small>Organized by parent folder</small></button>
             </div>
             <div class="bulk-tools-panel">
