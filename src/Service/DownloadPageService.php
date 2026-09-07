@@ -164,8 +164,21 @@ class DownloadPageService
             : 'application/octet-stream';
     }
 
+    private const VIDEO_EXTENSIONS = [
+        'mp4', 'webm', 'mkv', 'mov', 'avi', 'flv', 'wmv', 'm4v',
+        'mpeg', 'mpg', 'ts', 'm2ts', 'ogv', 'ogg', '3gp', 'm2v', 'vob',
+    ];
+
     public function isVideoFile(array $file): bool
     {
-        return str_starts_with($this->resolveDisplayMimeType($file), 'video/');
+        if (str_starts_with($this->resolveDisplayMimeType($file), 'video/')) {
+            return true;
+        }
+
+        // MIME detection is unreliable for some containers (MKV is often
+        // reported as application/x-matroska or octet-stream). Fall back to
+        // the file extension so these videos still stream and transcode.
+        $extension = strtolower((string)pathinfo((string)($file['filename'] ?? ''), PATHINFO_EXTENSION));
+        return in_array($extension, self::VIDEO_EXTENSIONS, true);
     }
 }

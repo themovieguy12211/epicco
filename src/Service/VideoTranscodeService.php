@@ -114,8 +114,7 @@ class VideoTranscodeService
             return;
         }
 
-        $mime = (string)($file['mime_type'] ?? '');
-        if (!str_starts_with($mime, 'video/')) {
+        if (!(new DownloadPageService())->isVideoFile($file)) {
             return;
         }
 

@@ -2369,7 +2369,7 @@ class FileController
 
     private function isVideoFile(array $file): bool
     {
-        return str_starts_with($this->resolveDisplayMimeType($file), 'video/');
+        return (new \App\Service\DownloadPageService())->isVideoFile($file);
     }
 
     private function resolveDisplayMimeType(array $file): string

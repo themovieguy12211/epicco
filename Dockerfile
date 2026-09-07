@@ -50,7 +50,7 @@ WORKDIR /app
 # transcoding, etc.) are committed and pushed to this repository, otherwise
 # the image will be built from stock fyuhls.
 # --------------------------------------------------
-RUN git clone --depth 1 --branch master https://github.com/themovieguy12211/fyuhls.git /app
+RUN git clone --depth 1 --branch master https://github.com/themovieguy12211/epicco.git /app
 
 # --------------------------------------------------
 # Configure fyuhls for piracy.cloud
@@ -59,6 +59,12 @@ RUN sed -i \
     -e "s|'base_url' => 'http://localhost'|'base_url' => 'https://piracy.cloud'|" \
     -e "s|'allowed_hosts' => \['localhost'\]|'allowed_hosts' => ['piracy.cloud']|" \
     /app/config/app.php
+
+# Keep a pristine copy of the SHIPPED config files. At runtime the /app/config
+# volume can start empty (masking these), so the entrypoint restores them from
+# this copy when missing. Runtime-generated files (database.php, installed.lock)
+# live only in the volume and are never touched here.
+RUN cp -a /app/config /app/config.dist
 
 # --------------------------------------------------
 # Composer dependencies
@@ -297,6 +303,39 @@ EOF
 # HTTP port
 # --------------------------------------------------
 EXPOSE 80
+
+# --------------------------------------------------
+# Entrypoint
+#
+# Coolify/Docker volume mounts replace the mounted directory, which resets the
+# www-data ownership set at build time. Re-apply ownership on the persistent
+# paths at every container start (supervisord runs as root) so the app can
+# always read/write its config, storage, and hidden config.
+# --------------------------------------------------
+RUN cat > /usr/local/bin/docker-entrypoint.sh <<'EOF'
+#!/bin/sh
+set -e
+
+chown -R www-data:www-data /fyuhls_secure 2>/dev/null || true
+chown -R www-data:www-data /app/storage 2>/dev/null || true
+chown -R www-data:www-data /app/config 2>/dev/null || true
+
+# If the /app/config volume is empty (fresh mount), restore the shipped config
+# files from the build-time copy. This never overwrites database.php or
+# installed.lock because the dist copy does not contain them.
+if [ ! -f /app/config/app.php ]; then
+    cp -a /app/config.dist/. /app/config/ 2>/dev/null || true
+    chown -R www-data:www-data /app/config 2>/dev/null || true
+fi
+
+chmod 700 /fyuhls_secure 2>/dev/null || true
+chmod 775 /app/storage /app/config 2>/dev/null || true
+
+exec "$@"
+EOF
+RUN sed -i 's/\r$//' /usr/local/bin/docker-entrypoint.sh && chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # --------------------------------------------------
 # Start services

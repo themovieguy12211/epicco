@@ -1,0 +1,8 @@
+# Force Unix line endings so shell scripts and the Dockerfile heredocs do not
+# get Windows CRLF endings, which break shebangs with "no such file or directory".
+* text=auto
+Dockerfile text eol=lf
+*.sh text eol=lf
+*.conf text eol=lf
+.dockerignore text eol=lf
+.gitattributes text eol=lf
