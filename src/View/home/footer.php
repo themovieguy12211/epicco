@@ -123,7 +123,6 @@ $footerLinks = array_merge($footerDefaultLinks, array_values(array_map(static fu
             <li id="ctxDownload"><span class="icon" aria-hidden="true">&#11015;</span> Download</li>
             <li id="ctxReplace"><span class="icon" aria-hidden="true">&#128260;</span> Replace File</li>
             <li id="ctxRename"><span class="icon" aria-hidden="true">&#9998;</span> Rename</li>
-            <li id="ctxEmbed"><span class="icon" aria-hidden="true">&#127909;</span> Set video / embed URL</li>
             <li id="ctxMove"><span class="icon" aria-hidden="true">&#128194;</span> Move to...</li>
             <li id="ctxCopy"><span class="icon" aria-hidden="true">&#128203;</span> Copy to...</li>
             <li id="ctxProps"><span class="icon" aria-hidden="true">&#8505;</span> Properties</li>

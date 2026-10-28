@@ -205,13 +205,10 @@ try {
         return $service->reconcileCompletedChecksums(200);
     });
 
-    // 20. Video Transcoding (adaptive HLS ladder)
+    // 20. Video HLS Transcode Worker (1 job per tick keeps single-box CPU safe;
+    // run additional workers / hosts for scale, claims are atomic)
     $manager->register('video_transcode', function() {
-        if (!\App\Service\VideoTranscodeService::isEnabled()) {
-            return ['status' => 'disabled'];
-        }
-        $concurrent = max(1, (int)\App\Model\Setting::get('video_transcode_concurrent', '1'));
-        return \App\Service\VideoTranscodeService::processBatch($concurrent);
+        return \App\Service\VideoTranscodeService::processBatch(1);
     });
 
     // Run all registered tasks

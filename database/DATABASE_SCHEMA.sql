@@ -103,7 +103,7 @@ CREATE TABLE `users` (
   `payment_method` VARCHAR(100) NULL,
   `payment_details` TEXT NULL /* Encrypted */,
   `monetization_model` ENUM('ppd', 'pps', 'mixed') NOT NULL DEFAULT 'ppd',
-  `transcode_disabled` TINYINT(1) NOT NULL DEFAULT 0,
+  `ad_tier` VARCHAR(8) NOT NULL DEFAULT 'full',
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -201,7 +201,6 @@ CREATE TABLE `files` (
   `status` ENUM('uploading', 'processing', 'ready', 'active', 'deleted', 'hidden', 'pending_purge', 'failed', 'abandoned', 'quarantined') NOT NULL DEFAULT 'active',
   `creation_origin` VARCHAR(32) NOT NULL DEFAULT 'upload',
   `deleted_restore_status` VARCHAR(32) NULL,
-  `embed_url` TEXT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
@@ -214,29 +213,6 @@ CREATE TABLE `files` (
   INDEX `files_dashboard_idx` (`user_id`, `folder_id`, `status`),
   INDEX `files_user_origin_status_idx` (`user_id`, `creation_origin`, `status`),
   INDEX `files_stored_status_idx` (`stored_file_id`, `status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- --------------------------------------------------------
--- 6b. Video Transcoding Jobs
--- --------------------------------------------------------
-CREATE TABLE `video_transcode_jobs` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `stored_file_id` BIGINT UNSIGNED NOT NULL,
-  `hls_token` CHAR(32) NULL,
-  `status` ENUM('pending','processing','ready','failed','cancelled') NOT NULL DEFAULT 'pending',
-  `progress` TINYINT UNSIGNED NOT NULL DEFAULT 0,
-  `manifest_path` VARCHAR(512) NULL,
-  `renditions_json` TEXT NULL,
-  `error_message` TEXT NULL,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `started_at` DATETIME NULL,
-  `completed_at` DATETIME NULL,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `video_transcode_stored_unique` (`stored_file_id`),
-  UNIQUE KEY `video_transcode_token_idx` (`hls_token`),
-  KEY `video_transcode_status_idx` (`status`, `created_at`),
-  CONSTRAINT `video_transcode_stored_fk` FOREIGN KEY (`stored_file_id`) REFERENCES `stored_files`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- --------------------------------------------------------

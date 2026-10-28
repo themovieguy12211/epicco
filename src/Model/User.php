@@ -215,41 +215,7 @@ class User {
         }
 
         SchemaService::ensureTables(['users'], false);
-        self::ensureTranscodeDisabledColumn($db);
         self::$runtimeColumnsReady = true;
-    }
-
-    /**
-     * Adds the optional `transcode_disabled` preference column on pre-existing
-     * installs without requiring a manual schema deep-repair. Fresh installs and
-     * schema syncs get it from the master schema; this is a safe runtime fallback.
-     */
-    private static function ensureTranscodeDisabledColumn($db): void
-    {
-        static $checked = false;
-        if ($checked) {
-            return;
-        }
-        $checked = true;
-
-        try {
-            $stmt = $db->prepare("
-                SELECT 1
-                FROM information_schema.COLUMNS
-                WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'users'
-                  AND COLUMN_NAME = 'transcode_disabled'
-                LIMIT 1
-            ");
-            $stmt->execute();
-            if ($stmt->fetchColumn()) {
-                return;
-            }
-
-            $db->exec("ALTER TABLE `users` ADD COLUMN `transcode_disabled` TINYINT(1) NOT NULL DEFAULT 0");
-        } catch (\Throwable $e) {
-            // Non-fatal: the column is optional and schema sync/deep-repair can add it later.
-        }
     }
 
     private static function hashStoredOneTimeToken(string $token): string

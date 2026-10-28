@@ -59,13 +59,43 @@ class App {
 
     private function buildContentSecurityPolicy(): string
     {
+        $requestPath = strtok((string)($_SERVER['REQUEST_URI'] ?? '/'), '?') ?: '/';
+        // Dood-style embeds are iframed on third-party sites, so /embed must
+        // allow cross-origin framing. Everywhere else stays SAMEORIGIN.
+        $frameAncestors = str_starts_with($requestPath, '/embed') ? '*' : "'self'";
         $connectSrc = array_merge([
             "'self'",
             'https://challenges.cloudflare.com',
             'https://static.cloudflareinsights.com',
         ], $this->resolveStorageConnectSources());
 
+        // Ad networks and video CDNs need beacons/XHR/fetch. Allow https: so
+        // third-party creatives, HLS segments on custom CDNs, and analytics
+        // beacons work without enumerating every ad domain in code.
+        $connectSrc[] = 'https:';
+        $connectSrc[] = 'blob:';
+
         $connectSrc = array_values(array_unique(array_filter($connectSrc)));
+
+        $extraScriptSrc = $this->resolveExtraCspSources('csp_extra_script_src');
+        $extraFrameSrc = $this->resolveExtraCspSources('csp_extra_frame_src');
+
+        $scriptSrc = array_merge([
+            "'self'",
+            "'nonce-{$this->cspNonce}'",
+            'https:',
+            'blob:',
+            'https://challenges.cloudflare.com',
+            'https://cdn.jsdelivr.net',
+            'https://static.cloudflareinsights.com',
+        ], $extraScriptSrc);
+
+        $frameSrc = array_merge([
+            "'self'",
+            'https:',
+            'blob:',
+            'https://challenges.cloudflare.com',
+        ], $extraFrameSrc);
 
         $formAction = [
             "'self'",
@@ -77,18 +107,53 @@ class App {
         return "default-src 'self'; "
             . "base-uri 'self'; "
             . 'form-action ' . implode(' ', $formAction) . '; '
-            . "frame-ancestors 'self'; "
-            . "script-src 'self' 'nonce-{$this->cspNonce}' https://challenges.cloudflare.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com; "
-            . "script-src-elem 'self' 'nonce-{$this->cspNonce}' https://challenges.cloudflare.com https://cdn.jsdelivr.net https://static.cloudflareinsights.com; "
+            . "frame-ancestors {$frameAncestors}; "
+            . 'script-src ' . implode(' ', array_unique($scriptSrc)) . '; '
+            . 'script-src-elem ' . implode(' ', array_unique($scriptSrc)) . '; '
             . "style-src 'self' 'nonce-{$this->cspNonce}' https://cdn.jsdelivr.net https://fonts.googleapis.com https://challenges.cloudflare.com; "
             . "style-src-elem 'self' 'nonce-{$this->cspNonce}' https://cdn.jsdelivr.net https://fonts.googleapis.com https://challenges.cloudflare.com; "
             . "style-src-attr 'unsafe-inline'; "
-            . "img-src 'self' data: https://cdn.buymeacoffee.com; "
+            . "img-src 'self' data: blob: https:; "
+            . "media-src 'self' blob: https:; "
             . "font-src 'self' data: https://cdn.jsdelivr.net https://fonts.gstatic.com; "
-            . "frame-src 'self' https: https://challenges.cloudflare.com; "
+            . 'frame-src ' . implode(' ', array_unique($frameSrc)) . '; '
             . 'connect-src ' . implode(' ', $connectSrc) . '; '
-            . "media-src 'self' blob: https: data:; "
             . "object-src 'none';";
+    }
+
+    /**
+     * Admin-configurable extra CSP sources (space/comma-separated https: origins).
+     * Lets operators allowlist ad-network script/iframe domains without code edits.
+     */
+    private function resolveExtraCspSources(string $settingKey): array
+    {
+        try {
+            $raw = trim((string)\App\Model\Setting::get($settingKey, ''));
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        if ($raw === '') {
+            return [];
+        }
+
+        $out = [];
+        foreach (preg_split('/[\s,]+/', $raw) as $part) {
+            $part = trim((string)$part);
+            if ($part === '') {
+                continue;
+            }
+            if (!str_starts_with($part, 'https://')) {
+                continue;
+            }
+            $host = strtolower((string)(parse_url($part, PHP_URL_HOST) ?? ''));
+            if ($host === '' || str_contains($host, ' ')) {
+                continue;
+            }
+            $out[] = 'https://' . $host;
+        }
+
+        return array_values(array_unique($out));
     }
 
     private function resolveStorageConnectSources(): array
@@ -486,12 +551,20 @@ class App {
                                 $siteName = \App\Model\Setting::getOrConfig('app.name', Config::get('app_name', 'Site'));
                                 $title = 'VPN / Proxy Detected - ' . $siteName;
                                 $metaDescription = 'Access from VPN or proxy services is blocked for this request.';
+                                try {
+                                    $vpnPackage = \App\Core\Auth::check()
+                                        ? \App\Model\Package::getUserPackage((int)(\App\Core\Auth::id() ?? 0))
+                                        : \App\Model\Package::getGuestPackage();
+                                } catch (\Throwable $e) {
+                                    $vpnPackage = null;
+                                }
                                 require_once dirname(__DIR__) . '/View/home/header.php';
                                 \App\Core\View::render('errors/vpn_blocked.php', [
                                     'ip' => $ip,
                                     'siteName' => $siteName,
                                     'title' => $title,
                                     'metaDescription' => $metaDescription,
+                                    'package' => is_array($vpnPackage) ? $vpnPackage : null,
                                 ]);
                                 require_once dirname(__DIR__) . '/View/home/footer.php';
                             }

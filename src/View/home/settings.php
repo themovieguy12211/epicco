@@ -329,12 +329,6 @@ if (\App\Service\FeatureService::twoFactorEnabled()) {
                                         </select>
                                     </div>
                                 </div>
-
-                                <div class="form-check" style="margin-top: 1rem;">
-                                    <input class="form-check-input" type="checkbox" name="transcode_disabled" id="transcodeDisabled" value="1" <?= ($user['transcode_disabled'] ?? 0) == 1 ? 'checked' : '' ?>>
-                                    <label class="form-check-label" for="transcodeDisabled">Disable video transcoding for my uploads</label>
-                                    <small class="form-text text-muted d-block">When checked, your video uploads are streamed in their original format instead of being converted to an adaptive HLS stream. This saves server processing time.</small>
-                                </div>
                             </div>
 
                             <?php if ($settingsRewardsEnabled): ?>

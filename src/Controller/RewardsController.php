@@ -265,6 +265,8 @@ class RewardsController
             'tiers' => $tiers,
             'enabledModels' => $enabledModels,
             'userModel' => $user ? ($user['monetization_model'] ?? 'ppd') : null,
+            'revenueShare' => \App\Service\AdLoadService::revenueSharePercent(),
+            'adLoadTier' => \App\Service\AdLoadService::currentTier(),
             'ppsCommission' => Setting::get('pps_commission_percent', '50', 'rewards'),
             'mixedPpdPercent' => Setting::get('mixed_ppd_percent', '30', 'rewards'),
             'mixedPpsPercent' => Setting::get('mixed_pps_percent', '30', 'rewards'),

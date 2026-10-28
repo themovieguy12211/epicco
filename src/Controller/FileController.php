@@ -1545,18 +1545,30 @@ class FileController
         $hlsUrl = null;
         $streamCsrf = Csrf::generate();
         $shareFields = $viewModel['shareFields'];
-
         if ($streamingEligible) {
-            \App\Service\VideoTranscodeService::enqueueStoredFile($file);
+            // Queue HLS transcode lazily; cron worker picks it up.
+            try {
+                \App\Service\VideoTranscodeService::enqueueStoredFile($file);
+                $storedFileId = (int)($file['stored_file_id'] ?? 0);
+                if ($storedFileId > 0) {
+                    $hlsJob = \App\Service\VideoTranscodeService::findJobByStoredFileId($storedFileId);
+                    if (is_array($hlsJob) && ($hlsJob['status'] ?? '') === 'ready') {
+                        $hlsReadyUrl = \App\Service\VideoTranscodeService::manifestUrl($hlsJob);
+                        // Same gate as progressive preview: hide player behind
+                        // captcha / wait timers, transcode still gets enqueued.
+                        if (!$captchaDownload && $waitTime <= 0) {
+                            $hlsUrl = $hlsReadyUrl;
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                $hlsUrl = null;
+            }
         }
-
         if ($streamingEligible && !$captchaDownload && $waitTime <= 0) {
-            $transcodeJob = \App\Service\VideoTranscodeService::findJobByStoredFileId((int)($file['stored_file_id'] ?? 0));
-            $hlsUrl = \App\Service\VideoTranscodeService::manifestUrl($transcodeJob);
-
             $streamSession = $fraud->createDownloadSession($file, Auth::id() ? (int)Auth::id() : null, [], 'stream');
             $streamSessionId = $streamSession['public_id'] ?? null;
-            if ($streamSessionId !== null && $hlsUrl === null) {
+            if ($streamSessionId !== null) {
                 $streamUrl = (new DownloadManager())->generateSignedUrl((string)($file['short_id'] ?? $file['id']), $file['filename'], $streamSessionId, 'stream') . '&stream=1';
             }
         }
@@ -2023,10 +2035,11 @@ class FileController
 
         // Try the fast provider-direct path before any storage HEAD/repair work.
         // For cloud-backed downloads this avoids an extra round trip before the browser
-        // is redirected to the provider.
-        if (!$needsObservedStartCommit && $minPercent <= 0 && !$requiresVerified && !$streamMode && !$requiresTrackedConcurrency && $speedLimit <= 0) {
+        // is redirected to the provider. Streams can use the same direct path when
+        // no byte-counted reward proof, concurrency slot, or speed limit forces PHP.
+        if (!$needsObservedStartCommit && $minPercent <= 0 && !$requiresVerified && !$requiresTrackedConcurrency && $speedLimit <= 0) {
             try {
-                $delivery = (new DownloadManager())->previewDelivery($file);
+                $delivery = (new DownloadManager())->previewDelivery($file, $streamMode);
             } catch (\RuntimeException $e) {
                 if ($e->getMessage() === \App\Core\StorageManager::MISSING_FILE_SERVER_MESSAGE) {
                     $this->renderStorageNodeUnavailableStatePage($package, $file);
@@ -2038,7 +2051,9 @@ class FileController
                 if (!$this->consumeDownloadLinkAtDeliveryBoundary($downloadLinkContext, $package, $file)) {
                     return;
                 }
-                if ($file['user_id']) {
+                // Streams use heartbeat-gated rewards (see streamHeartbeat), so do
+                // not instant-credit them the way normal downloads are credited.
+                if ($file['user_id'] && !$streamMode) {
                     (new \App\Service\RewardService())->trackDownload(
                         $file['id'],
                         \App\Service\SecurityService::getClientIp(),
@@ -2369,7 +2384,7 @@ class FileController
 
     private function isVideoFile(array $file): bool
     {
-        return (new \App\Service\DownloadPageService())->isVideoFile($file);
+        return str_starts_with($this->resolveDisplayMimeType($file), 'video/');
     }
 
     private function resolveDisplayMimeType(array $file): string
@@ -2729,190 +2744,6 @@ class FileController
         Auth::logActivity('file_rename', "Renamed file from $oldName to $name");
 
         echo json_encode(['status' => 'success']);
-    }
-
-    public function updateEmbed()
-    {
-        $this->checkAuth();
-        if (!Csrf::verify($_POST['csrf_token'] ?? '')) {
-            http_response_code(403);
-            die(json_encode(['status' => 'error', 'error' => 'CSRF Mismatch']));
-        }
-
-        $id = $_POST['id'] ?? 0;
-        $raw = trim((string)($_POST['embed_url'] ?? ''));
-
-        $file = File::find($id);
-        if (!$this->currentUserOwnsFile($file)) {
-            http_response_code(403);
-            die(json_encode(['status' => 'error', 'error' => 'Unauthorized']));
-        }
-
-        $normalized = '';
-        if ($raw !== '') {
-            $extracted = \App\Service\VideoEmbedService::extractEmbedUrl($raw);
-            if ($extracted === null || \App\Service\VideoEmbedService::sanitizeUrl($extracted) === null) {
-                die(json_encode(['status' => 'error', 'error' => 'Enter a valid http(s) video or embed URL.']));
-            }
-            $normalized = $extracted;
-        }
-
-        File::update($file['id'], ['embed_url' => $normalized]);
-        Auth::logActivity('file_embed', $normalized === ''
-            ? "Removed video/embed URL from {$file['filename']}"
-            : "Set video/embed URL on {$file['filename']}");
-
-        echo json_encode(['status' => 'success', 'embed_url' => $normalized]);
-    }
-
-    public function streamHls(string $token, string $path)
-    {
-        $job = \App\Service\VideoTranscodeService::findReadyJobByToken($token);
-        if (!$job) {
-            http_response_code(404);
-            exit;
-        }
-
-        $storedFile = \App\Model\StoredFile::find((int)$job['stored_file_id']);
-        if (!$storedFile) {
-            http_response_code(404);
-            exit;
-        }
-
-        if (!$this->isSafeHlsRelativePath($path)) {
-            http_response_code(400);
-            exit;
-        }
-
-        $objectKey = 'hls/' . $token . '/' . ltrim($path, '/');
-        $contentType = $this->hlsContentType($objectKey);
-
-        $db = \App\Core\Database::getInstance()->getConnection();
-        $storage = \App\Core\StorageManager::getProviderById(
-            $storedFile['file_server_id'] ? (int)$storedFile['file_server_id'] : null,
-            $db
-        );
-
-        if ($storage instanceof \App\Service\Storage\LocalStorage || $storage instanceof \App\Service\Storage\ConfigurableLocalStorage) {
-            try {
-                $absolute = $storage->getAbsolutePath($objectKey);
-            } catch (\Throwable $e) {
-                http_response_code(404);
-                exit;
-            }
-
-            if (!is_file($absolute)) {
-                http_response_code(404);
-                exit;
-            }
-
-            while (ob_get_level() > 0) {
-                ob_end_clean();
-            }
-
-            header('Content-Type: ' . $contentType);
-            header('Cache-Control: public, max-age=3600');
-            header('Accept-Ranges: bytes');
-            $size = (int)@filesize($absolute);
-            if ($size > 0) {
-                header('Content-Length: ' . $size);
-            }
-            readfile($absolute);
-            exit;
-        }
-
-        // Object storage: redirect each playlist/segment to a short presigned URL.
-        $presigned = $storage->getPresignedUrl($objectKey, 3600, ['response_content_type' => $contentType]);
-        if ($presigned === null) {
-            http_response_code(404);
-            exit;
-        }
-
-        header('Location: ' . $presigned);
-        exit;
-    }
-
-    private function isSafeHlsRelativePath(string $path): bool
-    {
-        if ($path === '' || str_contains($path, "\0")) {
-            return false;
-        }
-
-        if (str_starts_with($path, '/') || str_contains($path, '\\')) {
-            return false;
-        }
-
-        if (preg_match('#(^|/)\.\.(/|$)#', $path) === 1) {
-            return false;
-        }
-
-        return preg_match('#^[A-Za-z0-9._/-]+$#', $path) === 1;
-    }
-
-    private function hlsContentType(string $objectKey): string
-    {
-        $extension = strtolower((string)pathinfo($objectKey, PATHINFO_EXTENSION));
-        return match ($extension) {
-            'm3u8' => 'application/vnd.apple.mpegurl',
-            'ts' => 'video/mp2t',
-            default => 'application/octet-stream',
-        };
-    }
-
-    public function embed(string $id)
-    {
-        // This is an embeddable player page, not the full download page. Override
-        // the app-wide frame restrictions so it can be iframed on other sites.
-        header_remove('X-Frame-Options');
-        header("Content-Security-Policy: default-src 'self'; frame-ancestors *; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; media-src 'self' blob: https: data:; connect-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; object-src 'none';");
-        header('Referrer-Policy: strict-origin-when-cross-origin');
-
-        $file = File::findPublicByShortId($id);
-        $hasEmbedUrl = is_array($file) && trim((string)($file['embed_url'] ?? '')) !== '';
-
-        if (!$file || (!$this->isVideoFile($file) && !$hasEmbedUrl)) {
-            http_response_code(404);
-            echo '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Video not found</title></head><body style="margin:0;background:#000;color:#fff;font-family:system-ui,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;padding:1rem">Video not found or not playable.</body></html>';
-            exit;
-        }
-
-        $package = Auth::check() ? Package::getUserPackage((int)Auth::id()) : Package::getGuestPackage();
-        $downloadPageService = new DownloadPageService();
-        $viewModel = $downloadPageService->buildShowViewModel($file, $package);
-
-        $streamingEligible = (bool)$viewModel['streamingEligible'];
-        $streamSessionId = null;
-        $streamUrl = null;
-        $hlsUrl = null;
-        $streamCsrf = Csrf::generate();
-
-        if ($streamingEligible) {
-            \App\Service\VideoTranscodeService::enqueueStoredFile($file);
-
-            $transcodeJob = \App\Service\VideoTranscodeService::findJobByStoredFileId((int)($file['stored_file_id'] ?? 0));
-            $hlsUrl = \App\Service\VideoTranscodeService::manifestUrl($transcodeJob);
-
-            $fraud = new \App\Service\RewardFraudService();
-            $fraud->ensureVisitorCookie();
-            $streamSession = $fraud->createDownloadSession($file, Auth::id() ? (int)Auth::id() : null, [], 'stream');
-            $streamSessionId = $streamSession['public_id'] ?? null;
-            if ($streamSessionId !== null && $hlsUrl === null) {
-                $streamUrl = (new DownloadManager())->generateSignedUrl((string)($file['short_id'] ?? $file['id']), $file['filename'], $streamSessionId, 'stream') . '&stream=1';
-            }
-        }
-
-        $displayMimeType = $this->resolveDisplayMimeType($file);
-
-        View::render('home/partials/embed_player.php', array_merge($viewModel, [
-            'file' => $file,
-            'package' => $package,
-            'hlsUrl' => $hlsUrl,
-            'streamUrl' => $streamUrl,
-            'displayMimeType' => $displayMimeType,
-            'streamSessionId' => $streamSessionId,
-            'streamCsrf' => $streamCsrf,
-            'blockAdblock' => !empty($package['block_adblock']),
-        ]));
     }
 
     public function bulkCopy()

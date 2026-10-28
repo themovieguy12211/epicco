@@ -446,7 +446,6 @@ class UploadApiController
                 'is_public' => (int)$file['is_public'],
                 'folder_id' => $file['folder_id'],
                 'downloads' => $file['downloads'],
-                'embed_url' => $file['embed_url'] ?? null,
                 'created_at' => $file['created_at'],
             ],
         ]);

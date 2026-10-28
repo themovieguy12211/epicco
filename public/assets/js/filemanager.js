@@ -1152,50 +1152,6 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (action === 'embed') {
-            if (type !== 'file') {
-                return;
-            }
-
-            let currentEmbed = '';
-            try {
-                const info = await apiJson(`/api/v1/files/${encodeURIComponent(id)}`);
-                currentEmbed = (info && info.file && info.file.embed_url) ? String(info.file.embed_url) : '';
-            } catch (err) {
-                currentEmbed = '';
-            }
-
-            const newEmbed = await showActionModal(
-                'Set video / embed URL',
-                'Paste a Doodstream, Streamtape, Voe, or YouTube link, a direct MP4/WebM URL, or a full embed code. Leave empty to remove the video player.',
-                currentEmbed,
-                true
-            );
-
-            if (newEmbed === null) {
-                return;
-            }
-            if (newEmbed.trim() === currentEmbed.trim()) {
-                return;
-            }
-
-            const fd = new FormData();
-            fd.append('id', id);
-            fd.append('embed_url', newEmbed.trim());
-            fd.append('csrf_token', csrfToken);
-            fetch('/file/update-embed', { method: 'POST', body: fd })
-                .then(r => r.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        showToast(data.embed_url ? 'Video / embed URL saved' : 'Video / embed URL removed');
-                    } else {
-                        alert(data.error || 'Failed to save video / embed URL');
-                    }
-                })
-                .catch(() => alert('Failed to save video / embed URL'));
-            return;
-        }
-
         if (action === 'move') {
             document.getElementById('bulkMoveBtn')?.click();
             return;
@@ -1250,7 +1206,7 @@ document.addEventListener('DOMContentLoaded', () => {
         contextMenu.style.display = 'block';
 
         // re-wire context menu items after cloning to clear stale listeners
-        ['ctxDownload', 'ctxReplace', 'ctxRename', 'ctxEmbed', 'ctxMove', 'ctxCopy', 'ctxTrash'].forEach(cid => {
+        ['ctxDownload', 'ctxReplace', 'ctxRename', 'ctxMove', 'ctxCopy', 'ctxTrash'].forEach(cid => {
             const el = document.getElementById(cid);
             if (!el) return;
             const fresh = el.cloneNode(true);
@@ -1269,11 +1225,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         const ctxRename = document.getElementById('ctxRename');
         if (ctxRename) ctxRename.onclick = () => performItemAction('rename', id, type, name, item);
-        const ctxEmbed = document.getElementById('ctxEmbed');
-        if (ctxEmbed) {
-            ctxEmbed.style.display = (type === 'file') ? 'flex' : 'none';
-            ctxEmbed.onclick = () => performItemAction('embed', id, type, name, item);
-        }
         const ctxMove   = document.getElementById('ctxMove');
         if (ctxMove)   ctxMove.onclick   = () => performItemAction('move',   id, type, name, item);
         const ctxCopy   = document.getElementById('ctxCopy');
@@ -1689,11 +1640,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     label: 'Image thumbnails',
                     note: 'Only image files with thumbnails generate embed code here.',
                 };
-            case 'embed':
-                return {
-                    label: 'Video embed codes',
-                    note: 'Iframe player codes for video files. Folders and non-video files are skipped.',
-                };
             case 'grouped':
                 return {
                     label: 'Grouped by folder',
@@ -1759,11 +1705,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (item.type === 'file' && thumb && String(item.mime || '').startsWith('image/')) {
                         lines.push(`<a href="${escapeHtml(url)}" target="_blank" rel="noopener"><img src="${escapeHtml(thumb)}" alt="${escapeHtml(safeName)}"></a>`);
                         lines.push(`[url=${url}][img]${thumb}[/img][/url]`);
-                    }
-                } else if (format === 'embed') {
-                    if (item.type === 'file' && String(item.mime || '').startsWith('video/') && item.shortId) {
-                        const embedUrl = `${baseUrl()}/embed/${encodeURIComponent(item.shortId)}`;
-                        lines.push(`<iframe src="${escapeHtml(embedUrl)}" width="640" height="360" frameborder="0" allowfullscreen scrolling="no"></iframe>`);
                     }
                 } else {
                     lines.push(url);

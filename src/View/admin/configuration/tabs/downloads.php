@@ -94,43 +94,6 @@
     </div>
     <?php renderAdminCardEnd(); ?>
 
-    <div id="download-video"></div>
-    <?php renderAdminCardStart('Video Transcoding (HLS)', ['cardClass' => 'border-0 shadow-sm mb-4 config-section-card']); ?>
-    <div class="config-soft-callout config-section-card mb-3">
-        Converts uploaded videos into an adaptive HLS ladder (multiple resolutions) so they play everywhere instead of relying on each visitor's browser to decode the original file. Requires the <strong>ffmpeg</strong> binary to be configured under <strong>Config Hub &rarr; General</strong>, and the cron heartbeat to be running every minute.
-    </div>
-
-    <div class="mb-4">
-        <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" name="video_transcode_enabled" id="videoTranscode" value="1" <?= ($videoTranscodeEnabled === '1') ? 'checked' : '' ?>>
-            <label class="form-check-label fw-bold" for="videoTranscode">Enable Video Transcoding</label>
-        </div>
-        <small class="config-form-note">Videos are transcoded in the background by cron. Until a rendition is ready, the original file is streamed directly. Requires streaming support to be enabled.</small>
-    </div>
-
-    <div class="mb-4">
-        <label class="form-label fw-bold">Rendition Height (px)</label>
-        <input type="text" class="form-control" name="video_transcode_resolutions" value="<?= htmlspecialchars($videoTranscodeResolutions ?? '1080') ?>" placeholder="1080">
-        <small class="config-form-note">Target height to encode, from <code>144</code> to <code>2160</code>. Videos are never upscaled, so a source smaller than this keeps its original resolution. Default <code>1080</code> means 1080p or original quality. Separate multiple heights with commas only if you want a multi-quality ladder.</small>
-    </div>
-
-    <div class="mb-4">
-        <label class="form-label fw-bold">Concurrent Transcode Jobs</label>
-        <input type="number" class="form-control" name="video_transcode_concurrent" value="<?= htmlspecialchars($videoTranscodeConcurrent ?? '1') ?>" min="1" max="5">
-        <small class="config-form-note">How many videos to transcode per cron run. Keep this low on small servers; ffmpeg is CPU-intensive.</small>
-    </div>
-
-    <div class="d-flex align-items-center gap-2">
-        <form method="POST" action="/admin/video-transcode/retry" class="m-0">
-            <?= \App\Core\Csrf::field() ?>
-            <button type="submit" class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-arrow-repeat me-1"></i> Retry Failed Transcodes
-            </button>
-        </form>
-        <small class="config-form-note mb-0">Re-queues any jobs that failed (for example, because ffmpeg was missing at the time).</small>
-    </div>
-    <?php renderAdminCardEnd(); ?>
-
     <div id="download-cdn"></div>
     <?php renderAdminCardStart('CDN Redirects', ['cardClass' => 'border-0 shadow-sm mb-4 config-section-card']); ?>
     <div class="mb-4">

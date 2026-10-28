@@ -1,13 +1,17 @@
 <?php
 $currentUserId = \App\Core\Auth::id() ?? 0;
-$package = $currentUserId ? \App\Model\Package::getUserPackage($currentUserId) : \App\Model\Package::getGuestPackage();
+if (!isset($package) || !is_array($package)) {
+    $package = $currentUserId ? \App\Model\Package::getUserPackage($currentUserId) : \App\Model\Package::getGuestPackage();
+}
 $showAds = (bool)($package['show_ads'] ?? false);
-$adLeft = $showAds ? \App\Model\Setting::get('ad_download_left', '') : '';
-$adRight = $showAds ? \App\Model\Setting::get('ad_download_right', '') : '';
-$adTop = $showAds ? \App\Model\Setting::get('ad_download_top', '') : '';
-$adBottom = $showAds ? \App\Model\Setting::get('ad_download_bottom', '') : '';
-$adOverlay = $showAds ? \App\Model\Setting::get('ad_download_overlay', '') : '';
-$adPopunder = $showAds ? \App\Model\Setting::get('ad_download_popunder', '') : '';
+$adSlot = static function (string $slot, string $key) use ($showAds): string {
+    return \App\Service\AdLoadService::renderSlot($showAds, $slot, $key);
+};
+$adLeft = $adSlot('left', 'ad_download_left');
+$adRight = $adSlot('right', 'ad_download_right');
+$adTop = $adSlot('top', 'ad_download_top');
+$adBottom = $adSlot('bottom', 'ad_download_bottom');
+$adOverlay = $adSlot('overlay', 'ad_download_overlay');
 ?>
 <style>
     .vpn-block-shell {
@@ -268,10 +272,6 @@ $adPopunder = $showAds ? \App\Model\Setting::get('ad_download_popunder', '') : '
 
         <?php if ($adBottom !== ''): ?>
             <div class="vpn-block-bottom-ad"><?= $adBottom ?></div>
-        <?php endif; ?>
-
-        <?php if ($adPopunder !== ''): ?>
-            <div class="vpn-block-popunder" aria-hidden="true" style="display:none"><?= $adPopunder ?></div>
         <?php endif; ?>
     </div>
 

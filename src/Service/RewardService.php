@@ -610,7 +610,7 @@ class RewardService
                         continue;
                     }
 
-                    $amount = $this->calculateReward($file, $ip);
+                    $amount = $this->calculateReward($file, $ip, isset($receipt['country_code']) && preg_match('/^[A-Z]{2}$/', (string)$receipt['country_code']) === 1 ? (string)$receipt['country_code'] : null);
                     if ($amount <= 0) {
                         $this->markReceiptWithReasons($receiptId, 'processed', [
                             'No active reward tier matched this download under the current payout configuration.',
@@ -1247,7 +1247,7 @@ class RewardService
         return (float)$stmt->fetchColumn();
     }
 
-    private function calculateReward(array $file, string $ip): float
+    private function calculateReward(array $file, string $ip, ?string $viewerCountryCode = null): float
     {
         $ratePer1000 = $this->resolvePpdRateForIp($ip);
         if ($ratePer1000 <= 0) {
@@ -1265,6 +1265,18 @@ class RewardService
         $stmt->execute([(int)$file['user_id']]);
         $row = $stmt->fetch();
         $model = (string)($row['monetization_model'] ?? 'ppd');
+        // Defensive: old installs gain ad_tier via Deep Repair; default full until then.
+        $uploaderTier = 'full';
+        try {
+            $tierStmt = $db->prepare("SELECT ad_tier FROM users WHERE id = ? LIMIT 1");
+            $tierStmt->execute([(int)$file['user_id']]);
+            $tierValue = $tierStmt->fetchColumn();
+            if (is_string($tierValue) && $tierValue !== '') {
+                $uploaderTier = \App\Service\AdLoadService::normalizeTier($tierValue);
+            }
+        } catch (\Throwable $e) {
+            $uploaderTier = 'full';
+        }
         $package = [
             'ppd_enabled' => (int)($row['ppd_enabled'] ?? 0),
             'pps_enabled' => (int)($row['pps_enabled'] ?? 0),
@@ -1278,6 +1290,9 @@ class RewardService
             $mixedPercent = max(0, min(100, (int)Setting::get('mixed_ppd_percent', '30')));
             $ratePer1000 *= ($mixedPercent / 100);
         }
+
+        // Ad-load revenue share: uploader's chosen tier x site/geo tier.
+        $ratePer1000 *= \App\Service\AdLoadService::revenueMultiplierForUpload($uploaderTier, $viewerCountryCode);
 
         return round($ratePer1000 / 1000, 4);
     }

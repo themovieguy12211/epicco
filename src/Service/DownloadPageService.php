@@ -7,6 +7,11 @@ use App\Model\Setting;
 
 class DownloadPageService
 {
+    private function gatedSlot(bool $showAds, string $slot, string $settingKey, ?array $file = null): string
+    {
+        $uploaderTier = is_array($file) ? \App\Service\AdLoadService::uploaderTierForFile($file) : 'full';
+        return \App\Service\AdLoadService::renderSlot($showAds, $slot, $settingKey, $uploaderTier);
+    }
     public function buildPublicShareFields(array $file): array
     {
         if (empty($file['is_public']) || empty($file['short_id'])) {
@@ -54,17 +59,6 @@ class DownloadPageService
             ];
         }
 
-        $isVideoFile = str_starts_with($this->resolveDisplayMimeType($file), 'video/');
-        $hasEmbedUrl = trim((string)($file['embed_url'] ?? '')) !== '';
-        if ($isVideoFile || $hasEmbedUrl) {
-            $embedUrl = $baseUrl . '/embed/' . rawurlencode((string)$file['short_id']);
-            $embedUrlHtml = htmlspecialchars($embedUrl, ENT_QUOTES, 'UTF-8');
-            $shareFields[] = [
-                'label' => 'Embed Code',
-                'value' => '<iframe src="' . $embedUrlHtml . '" width="640" height="360" frameborder="0" allowfullscreen scrolling="no"></iframe>',
-            ];
-        }
-
         return $shareFields;
     }
 
@@ -94,12 +88,13 @@ class DownloadPageService
             'package' => $package,
             'file' => $file,
             'shareFields' => $shareFields,
-            'adLeft' => $showAds ? Setting::get('ad_download_left', '') : '',
-            'adRight' => $showAds ? Setting::get('ad_download_right', '') : '',
-            'adTop' => $showAds ? Setting::get('ad_download_top', '') : '',
-            'adBottom' => $showAds ? Setting::get('ad_download_bottom', '') : '',
-            'adOverlay' => $showAds ? Setting::get('ad_download_overlay', '') : '',
-            'adPopunder' => $showAds ? Setting::get('ad_download_popunder', '') : '',
+            'adLeft' => $this->gatedSlot($showAds, 'left', 'ad_download_left', $file),
+            'adRight' => $this->gatedSlot($showAds, 'right', 'ad_download_right', $file),
+            'adTop' => $this->gatedSlot($showAds, 'top', 'ad_download_top', $file),
+            'adBottom' => $this->gatedSlot($showAds, 'bottom', 'ad_download_bottom', $file),
+            'adOverlay' => $this->gatedSlot($showAds, 'overlay', 'ad_download_overlay', $file),
+            'adPopunder' => $this->gatedSlot($showAds, 'popunder', 'ad_popunder', $file),
+            'adNative' => $this->gatedSlot($showAds, 'native', 'ad_native', $file),
         ];
     }
 
@@ -122,8 +117,6 @@ class DownloadPageService
         $showAds = (bool)($package['show_ads'] ?? false);
         $streamingEnabled = Setting::get('streaming_support_enabled', '0') === '1';
         $streamingEligible = $streamingEnabled && $this->isVideoFile($file);
-        $embedUrl = isset($file['embed_url']) ? trim((string)$file['embed_url']) : '';
-        $videoEmbed = VideoEmbedService::build($embedUrl);
 
         return [
             'title' => 'Download: ' . (string)$file['filename'],
@@ -136,15 +129,14 @@ class DownloadPageService
             'captchaDownload' => $captchaDownload,
             'waitTime' => $waitTime,
             'showAds' => $showAds,
-            'adLeft' => $showAds ? Setting::get('ad_download_left', '') : '',
-            'adRight' => $showAds ? Setting::get('ad_download_right', '') : '',
-            'adTop' => $showAds ? Setting::get('ad_download_top', '') : '',
-            'adBottom' => $showAds ? Setting::get('ad_download_bottom', '') : '',
-            'adOverlay' => $showAds ? Setting::get('ad_download_overlay', '') : '',
-            'adPopunder' => $showAds ? Setting::get('ad_download_popunder', '') : '',
+            'adLeft' => $this->gatedSlot($showAds, 'left', 'ad_download_left', $file),
+            'adRight' => $this->gatedSlot($showAds, 'right', 'ad_download_right', $file),
+            'adTop' => $this->gatedSlot($showAds, 'top', 'ad_download_top', $file),
+            'adBottom' => $this->gatedSlot($showAds, 'bottom', 'ad_download_bottom', $file),
+            'adOverlay' => $this->gatedSlot($showAds, 'overlay', 'ad_download_overlay', $file),
+            'adPopunder' => $this->gatedSlot($showAds, 'popunder', 'ad_popunder', $file),
+            'adNative' => $this->gatedSlot($showAds, 'native', 'ad_native', $file),
             'streamingEligible' => $streamingEligible,
-            'embedUrl' => $embedUrl,
-            'videoEmbed' => $videoEmbed,
             'shareFields' => $this->buildPublicShareFields($file),
             'reportCaptchaEnabled' => Setting::get('captcha_report_file', '0') === '1',
             'reportCaptchaSiteKey' => Setting::get('captcha_site_key', Config::get('turnstile.site_key')),
@@ -164,21 +156,8 @@ class DownloadPageService
             : 'application/octet-stream';
     }
 
-    private const VIDEO_EXTENSIONS = [
-        'mp4', 'webm', 'mkv', 'mov', 'avi', 'flv', 'wmv', 'm4v',
-        'mpeg', 'mpg', 'ts', 'm2ts', 'ogv', 'ogg', '3gp', 'm2v', 'vob',
-    ];
-
     public function isVideoFile(array $file): bool
     {
-        if (str_starts_with($this->resolveDisplayMimeType($file), 'video/')) {
-            return true;
-        }
-
-        // MIME detection is unreliable for some containers (MKV is often
-        // reported as application/x-matroska or octet-stream). Fall back to
-        // the file extension so these videos still stream and transcode.
-        $extension = strtolower((string)pathinfo((string)($file['filename'] ?? ''), PATHINFO_EXTENSION));
-        return in_array($extension, self::VIDEO_EXTENSIONS, true);
+        return str_starts_with($this->resolveDisplayMimeType($file), 'video/');
     }
 }

@@ -745,7 +745,6 @@ class File {
         static $allowed = [
             'folder_id', 'status', 'deleted_restore_status', 'filename',
             'is_public', 'password', 'allow_ppd', 'delete_at', 'stored_file_id',
-            'embed_url',
         ];
         $data = array_intersect_key($data, array_flip($allowed));
         if (empty($data)) {
@@ -1193,44 +1192,7 @@ class File {
         }
 
         SchemaService::ensureTables(['files'], false);
-        self::ensureEmbedUrlColumn();
         self::$schemaReady = true;
-    }
-
-    /**
-     * Adds the optional `embed_url` column on pre-existing installs without
-     * requiring a manual schema deep-repair. The column is added through the
-     * normal master schema on fresh installs and schema syncs; this is a
-     * safe, idempotent runtime fallback only.
-     */
-    private static function ensureEmbedUrlColumn(): void
-    {
-        static $checked = false;
-        if ($checked) {
-            return;
-        }
-        $checked = true;
-
-        try {
-            $db = Database::getInstance()->getConnection();
-            $stmt = $db->prepare("
-                SELECT 1
-                FROM information_schema.COLUMNS
-                WHERE TABLE_SCHEMA = DATABASE()
-                  AND TABLE_NAME = 'files'
-                  AND COLUMN_NAME = 'embed_url'
-                LIMIT 1
-            ");
-            $stmt->execute();
-            if ($stmt->fetchColumn()) {
-                return;
-            }
-
-            $db->exec("ALTER TABLE `files` ADD COLUMN `embed_url` TEXT NULL");
-        } catch (\Throwable $e) {
-            // Non-fatal: the column is optional. The heartbeat schema sync or
-            // an admin deep-repair will add it later if this attempt fails.
-        }
     }
 
     private static function normalizeFolderIdForWrite(\PDO $db, int|string|null $folderId, ?int $userId): ?int

@@ -310,18 +310,6 @@ class StoredFile {
                 ];
             }
 
-            // Best-effort cleanup of any derived HLS transcoding output. Derived
-            // renditions are unguessable-token protected, so a failed delete is a
-            // storage leak rather than a security issue and never blocks the purge.
-            try {
-                \App\Service\VideoTranscodeService::deleteRenditionsForStoredFile($id);
-            } catch (\Throwable $e) {
-                \App\Core\Logger::warning('StoredFile purge continued after HLS cleanup error', [
-                    'id' => $id,
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
             // Missing objects on disk should still allow the canonical stored-file
             // record and usage counters to be purged idempotently.
             $objectMissing = method_exists($storage, 'exists') && !$storage->exists((string)$sf['storage_path']);

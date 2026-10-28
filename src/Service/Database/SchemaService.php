@@ -14,7 +14,7 @@ use PDO;
  */
 class SchemaService
 {
-    const SCHEMA_VERSION = '2.9.1';
+    const SCHEMA_VERSION = '2.11.0';
     private const SCHEMA_SYNC_LOCK_NAME = 'fyuhls_schema_sync';
     private const SCHEMA_REPAIR_CHECKPOINT_KEY = 'schema_repair_checkpoint';
     private static int $explicitRepairDepth = 0;
@@ -134,7 +134,7 @@ class SchemaService
                     'payment_method' => "VARCHAR(100) NULL",
                     'payment_details' => "TEXT NULL /* Encrypted */",
                     'monetization_model' => "ENUM('ppd', 'pps', 'mixed') NOT NULL DEFAULT 'ppd'",
-                    'transcode_disabled' => "TINYINT(1) NOT NULL DEFAULT 0",
+                    'ad_tier' => "VARCHAR(8) NOT NULL DEFAULT 'full'",
                     'created_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
                     'updated_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
                 ],
@@ -234,7 +234,6 @@ class SchemaService
                     'status' => "ENUM('uploading', 'processing', 'ready', 'active', 'deleted', 'hidden', 'pending_purge', 'failed', 'abandoned', 'quarantined') NOT NULL DEFAULT 'active'",
                     'creation_origin' => "VARCHAR(32) NOT NULL DEFAULT 'upload'",
                     'deleted_restore_status' => "VARCHAR(32) NULL",
-                    'embed_url' => "TEXT NULL",
                     'created_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
                     'updated_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
                 ],
@@ -251,31 +250,6 @@ class SchemaService
                     'files_user_fk' => "FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE",
                     'files_stored_fk' => "FOREIGN KEY (`stored_file_id`) REFERENCES `stored_files`(`id`) ON DELETE RESTRICT",
                     'files_folder_fk' => "FOREIGN KEY (`folder_id`) REFERENCES `folders`(`id`) ON DELETE SET NULL"
-                ]
-            ],
-            'video_transcode_jobs' => [
-                'columns' => [
-                    'id' => "BIGINT UNSIGNED NOT NULL AUTO_INCREMENT",
-                    'stored_file_id' => "BIGINT UNSIGNED NOT NULL",
-                    'hls_token' => "CHAR(32) NULL",
-                    'status' => "ENUM('pending','processing','ready','failed','cancelled') NOT NULL DEFAULT 'pending'",
-                    'progress' => "TINYINT UNSIGNED NOT NULL DEFAULT 0",
-                    'manifest_path' => "VARCHAR(512) NULL",
-                    'renditions_json' => "TEXT NULL",
-                    'error_message' => "TEXT NULL",
-                    'created_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-                    'updated_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP",
-                    'started_at' => "DATETIME NULL",
-                    'completed_at' => "DATETIME NULL"
-                ],
-                'primary' => 'id',
-                'indexes' => [
-                    'video_transcode_stored_unique' => "UNIQUE INDEX video_transcode_stored_unique (stored_file_id)",
-                    'video_transcode_status_idx' => "INDEX video_transcode_status_idx (status, created_at)",
-                    'video_transcode_token_idx' => "UNIQUE INDEX video_transcode_token_idx (hls_token)"
-                ],
-                'foreign_keys' => [
-                    'video_transcode_stored_fk' => "FOREIGN KEY (`stored_file_id`) REFERENCES `stored_files`(`id`) ON DELETE CASCADE"
                 ]
             ],
             'cron_tasks' => [
@@ -1629,6 +1603,30 @@ class SchemaService
                 'foreign_keys' => [
                     'remote_upload_queue_user_fk' => "FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE",
                     'remote_upload_queue_folder_fk' => "FOREIGN KEY (`folder_id`) REFERENCES `folders`(`id`) ON DELETE SET NULL"
+                ]
+            ],
+            'video_transcode_jobs' => [
+                'columns' => [
+                    'id' => "BIGINT UNSIGNED NOT NULL AUTO_INCREMENT",
+                    'stored_file_id' => "BIGINT UNSIGNED NOT NULL",
+                    'hls_token' => "CHAR(32) NOT NULL",
+                    'status' => "ENUM('pending', 'processing', 'ready', 'failed') NOT NULL DEFAULT 'pending'",
+                    'progress' => "INT UNSIGNED NOT NULL DEFAULT 0",
+                    'manifest_path' => "VARCHAR(255) NULL",
+                    'renditions_json' => "LONGTEXT NULL",
+                    'error_message' => "TEXT NULL",
+                    'started_at' => "DATETIME NULL",
+                    'completed_at' => "DATETIME NULL",
+                    'created_at' => "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+                ],
+                'primary' => 'id',
+                'indexes' => [
+                    'video_transcode_stored_file_idx' => "UNIQUE INDEX video_transcode_stored_file_idx (stored_file_id)",
+                    'video_transcode_token_idx' => "UNIQUE INDEX video_transcode_token_idx (hls_token)",
+                    'video_transcode_status_idx' => "INDEX video_transcode_status_idx (status, created_at)"
+                ],
+                'foreign_keys' => [
+                    'video_transcode_stored_file_fk' => "FOREIGN KEY (`stored_file_id`) REFERENCES `stored_files`(`id`) ON DELETE CASCADE"
                 ]
             ]
         ];

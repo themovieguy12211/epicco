@@ -186,6 +186,16 @@ class AuthController {
         return MonetizationModelService::normalizeRequestedModel($model, $package, $currentModel);
     }
 
+    private function normalizeAdTier(?string $tier, ?string $currentTier = null): string
+    {
+        $tier = strtolower(trim((string)$tier));
+        if (in_array($tier, \App\Service\AdLoadService::TIERS, true)) {
+            return $tier;
+        }
+
+        return \App\Service\AdLoadService::normalizeTier($currentTier, 'full');
+    }
+
     private function normalizePaymentDetails(?string $details): string
     {
         $details = trim((string)$details);
@@ -725,7 +735,6 @@ class AuthController {
                     $updateData = [
                         'timezone' => $this->normalizeUserTimezone($_POST['timezone'] ?? 'UTC'),
                         'default_privacy' => $this->normalizeDefaultPrivacy($_POST['default_privacy'] ?? 'public'),
-                        'transcode_disabled' => isset($_POST['transcode_disabled']) ? '1' : '0',
                     ];
 
                     if ($error === '') {
@@ -758,6 +767,12 @@ class AuthController {
                                 $_POST['monetization_model'] ?? 'ppd',
                                 \App\Model\Package::getUserPackage((int)$userId),
                                 (string)($currentUser['monetization_model'] ?? 'ppd')
+                            );
+                            // Saved separately below so installs waiting on Deep Repair
+                            // (no users.ad_tier column yet) can still save profiles.
+                            $requestedAdTier = $this->normalizeAdTier(
+                                $_POST['ad_tier'] ?? null,
+                                (string)($currentUser['ad_tier'] ?? 'full')
                             );
                         }
 
@@ -814,6 +829,20 @@ class AuthController {
 
                             $stmt = $db->prepare("UPDATE users SET " . implode(', ', $fields) . " WHERE id = ?");
                             $stmt->execute($values);
+
+                            // Best-effort ad-tier save (column lands via Deep Repair).
+                            if (FeatureService::rewardsEnabled() && isset($requestedAdTier)) {
+                                try {
+                                    $tierStmt = $db->prepare("UPDATE users SET ad_tier = ? WHERE id = ?");
+                                    $tierStmt->execute([$requestedAdTier, $userId]);
+                                } catch (\Throwable $tierError) {
+                                    \App\Core\Logger::warning('ad tier save deferred until schema repair', [
+                                        'user_id' => $userId,
+                                        'error' => $tierError->getMessage(),
+                                    ]);
+                                }
+                            }
+
                             $db->commit();
                         } catch (\Throwable $e) {
                             if ($db->inTransaction()) {

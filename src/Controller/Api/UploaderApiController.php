@@ -665,7 +665,6 @@ class UploaderApiController
             'downloads' => (int)($file['downloads'] ?? 0),
             'is_public' => (int)($file['is_public'] ?? 0),
             'status' => $file['status'] ?? 'active',
-            'embed_url' => $file['embed_url'] ?? null,
             'created_at' => $file['created_at'] ?? null,
         ];
     }

@@ -1,6 +1,6 @@
 <style>
-    .download-page-shell{display:flex;justify-content:center;align-items:center;flex:1;padding:2rem;gap:2rem;max-width:1400px;margin:0 auto;width:100%}
-    .download-page-sidebar{flex:0 0 300px;max-width:300px;display:none;align-self:center}
+    .download-page-shell{display:flex;justify-content:center;align-items:flex-start;flex:1;padding:2rem;gap:2rem;max-width:1400px;margin:0 auto;width:100%}
+    .download-page-sidebar{flex:0 0 300px;max-width:300px;display:block;align-self:flex-start}
     .download-page-sidebar-card{background:#f1f5f9;padding:1rem;border-radius:8px;text-align:center;overflow-wrap:anywhere;word-break:break-all}
     .download-page-center{flex:1 1 auto;max-width:560px;min-width:0;width:100%}
     .download-page-card{background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.08);padding:2.5rem;width:100%;box-sizing:border-box}
@@ -32,7 +32,7 @@
     .download-overlay-card{position:relative;max-width:90%;max-height:90%;background:#fff;padding:2rem;border-radius:12px;overflow:auto}
     .download-overlay-close{position:absolute;top:10px;right:10px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-weight:700}
     .download-overlay-body{overflow-wrap:anywhere;word-break:break-all}
-    @media (min-width: 1100px){.download-page-sidebar{display:block}}
+    @media (max-width: 1023px){.download-page-shell{flex-direction:column;align-items:stretch}.download-page-sidebar{flex:1 1 auto;max-width:560px;width:100%;margin:0 auto}}
     @media (max-width: 640px){.download-share-control{flex-direction:column}.download-share-copy{width:100%}}
 </style>
 
@@ -81,10 +81,6 @@
 
         <?php if (($adBottom ?? '') !== ''): ?>
         <div class="download-page-bottom-ad"><?= $adBottom ?></div>
-        <?php endif; ?>
-
-        <?php if (($adPopunder ?? '') !== ''): ?>
-        <div class="download-page-popunder" aria-hidden="true" style="display:none"><?= $adPopunder ?></div>
         <?php endif; ?>
     </div>
 

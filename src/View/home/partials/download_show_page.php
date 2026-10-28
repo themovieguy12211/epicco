@@ -1,6 +1,6 @@
 <style>
-    .download-page-shell{display:flex;justify-content:center;align-items:center;flex:1;padding:2rem;gap:2rem;max-width:1400px;margin:0 auto;width:100%}
-    .download-page-sidebar{flex:0 0 300px;max-width:300px;display:none;align-self:center}
+    .download-page-shell{display:flex;justify-content:center;align-items:flex-start;flex:1;padding:2rem;gap:2rem;max-width:1400px;margin:0 auto;width:100%}
+    .download-page-sidebar{flex:0 0 300px;max-width:300px;display:block;align-self:flex-start}
     .download-page-sidebar-card{background:#f1f5f9;padding:1rem;border-radius:8px;text-align:center;overflow-wrap:anywhere;word-break:break-all}
     .download-page-center{flex:1 1 auto;max-width:560px;min-width:0;width:100%}
     .download-page-card{background:#fff;border-radius:12px;box-shadow:0 4px 24px rgba(0,0,0,.08);padding:2.5rem;width:100%;box-sizing:border-box}
@@ -29,11 +29,6 @@
     .download-stream-copy{margin:0 0 .75rem;color:#334155;font-size:.9rem}
     .download-stream-video{width:100%;max-height:420px;border-radius:10px;background:#000}
     .download-stream-status{margin-top:.65rem;font-size:.85rem;color:#475569}
-    .download-embed-card{margin:0 0 1.5rem;padding:1rem;background:#0f172a;border-radius:12px}
-    .download-embed-title{color:#cbd5e1;font-size:.85rem;margin-bottom:.75rem}
-    .download-embed-frame{position:relative;width:100%;padding-top:56.25%;background:#000;border-radius:8px;overflow:hidden}
-    .download-embed-iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-    .download-embed-video{width:100%;max-height:420px;border-radius:8px;background:#000;display:block}
     .download-stream-disabled{margin:0 0 1.5rem;padding:1rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:12px;color:#475569;font-size:.9rem}
     .download-captcha-wrap{margin-bottom:1.5rem}
     .download-captcha-copy{font-size:.875rem;color:#475569;margin:0 0 .75rem}
@@ -47,7 +42,6 @@
     .download-overlay-close{position:absolute;top:10px;right:10px;background:#ef4444;color:#fff;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-weight:700}
     .download-overlay-body{overflow-wrap:anywhere;word-break:break-all}
     .download-page-bottom-ad{background:#f1f5f9;padding:.75rem;text-align:center;border-radius:8px;margin-top:1.5rem;overflow-wrap:anywhere;word-break:break-all}
-    .download-page-popunder{display:none}
     .download-share-panel{margin-top:1.5rem;padding:1rem;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}
     .download-share-heading{font-size:1rem;font-weight:700;color:#0f172a;margin:0 0 .75rem}
     .download-share-row{margin-bottom:.875rem}
@@ -63,8 +57,10 @@
     .download-abuse-trigger-wrap{margin-top:1rem;text-align:left}
     .download-abuse-trigger{background:none;border:none;color:#94a3b8;cursor:pointer;font-size:.8125rem;font-weight:500;transition:color .2s}
     .download-abuse-status{display:none;margin-top:1rem}
+    .download-native-float{position:fixed;left:50%;transform:translateX(-50%);bottom:1rem;z-index:9000;max-width:min(728px,calc(100vw - 2rem));background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 12px 40px rgba(15,23,42,.18);padding:.6rem .6rem .6rem 1rem;display:flex;gap:.75rem;align-items:flex-start;overflow-wrap:anywhere;word-break:break-all}
+    .download-native-float__close{flex:0 0 auto;background:#f1f5f9;border:0;border-radius:8px;width:28px;height:28px;cursor:pointer;font-weight:700;color:#64748b}
     @media (max-width: 640px){.download-share-control{flex-direction:column}.download-share-copy{width:100%}.download-file-bar{flex-wrap:wrap}.download-file-bar__header{flex-direction:column;align-items:flex-start}.download-file-bar__actions{padding-top:0}}
-    @media (min-width: 1024px) {.download-ad-sidebar { display: block !important; }}
+    @media (max-width: 1023px){.download-page-shell{flex-direction:column;align-items:stretch}.download-page-sidebar{flex:1 1 auto;max-width:560px;width:100%;margin:0 auto}}
 </style>
 
 <?php
@@ -84,6 +80,28 @@ $downloadActionButtonTitle = !empty($downloadAlreadySaved) ? 'Already in your ac
 </div>
 <?php endif; ?>
 
+<?php if (trim((string)($adPopunder ?? '')) !== ''): ?>
+<div id="adPopunderSlot" style="display:none" aria-hidden="true"><?= $adPopunder ?></div>
+<?php endif; ?>
+
+<?php if (trim((string)($adNative ?? '')) !== ''): ?>
+<div id="adNativeFloat" class="download-native-float" role="complementary" aria-label="Advertisement">
+    <div style="flex:1;min-width:0"><?= $adNative ?></div>
+    <button type="button" id="adNativeFloatClose" class="download-native-float__close" aria-label="Close ad">&times;</button>
+</div>
+<script>
+(function() {
+    var close = document.getElementById("adNativeFloatClose");
+    if (close) {
+        close.addEventListener("click", function() {
+            var el = document.getElementById("adNativeFloat");
+            if (el) el.remove();
+        });
+    }
+})();
+</script>
+<?php endif; ?>
+
 <div class="download-page-shell">
     <?php if (($adLeft ?? '') !== ''): ?>
     <div class="download-ad-sidebar download-page-sidebar">
@@ -97,7 +115,7 @@ $downloadActionButtonTitle = !empty($downloadAlreadySaved) ? 'Already in your ac
                 <?= (new \App\Service\SecurityService())->getAntiAdblockScript() ?>
             <?php endif; ?>
 
-            <?php if (!empty($showAds)): ?>
+            <?php if (!empty($showAds) && trim((string)($adTop ?? '')) !== ''): ?>
             <div class="download-page-top-ad">
                 <?= $adTop ?>
             </div>
@@ -146,35 +164,34 @@ $downloadActionButtonTitle = !empty($downloadAlreadySaved) ? 'Already in your ac
             </div>
             <div id="downloadActionStatus" class="download-action-status" aria-live="polite"></div>
 
-            <?php if (!empty($videoEmbed)): ?>
-            <div class="download-embed-card">
-                <div class="download-embed-title"><?= htmlspecialchars((string)$videoEmbed['title']) ?></div>
-                <?php if (($videoEmbed['kind'] ?? '') === 'video'): ?>
-                    <video class="download-embed-video" controls preload="metadata" src="<?= htmlspecialchars((string)$videoEmbed['src']) ?>"></video>
-                <?php else: ?>
-                    <div class="download-embed-frame">
-                        <iframe
-                            src="<?= htmlspecialchars((string)$videoEmbed['src'], ENT_QUOTES, 'UTF-8') ?>"
-                            class="download-embed-iframe"
-                            frameborder="0"
-                            allowfullscreen
-                            allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-                            referrerpolicy="no-referrer"
-                            sandbox="allow-scripts allow-same-origin allow-presentation allow-popups allow-forms"
-                            loading="lazy"
-                        ></iframe>
-                    </div>
-                <?php endif; ?>
-            </div>
-            <?php endif; ?>
-
             <?php if (($hlsUrl ?? null) !== null): ?>
             <div class="download-stream-card">
-                <div class="download-stream-title">Adaptive Streaming Enabled</div>
-                <p class="download-stream-copy">This video is delivered as an adaptive HLS stream. Reward credit only counts after the configured watch thresholds are met.</p>
-                <video id="rewardStreamPlayer" class="download-stream-video" controls preload="metadata"></video>
-                <div id="rewardStreamStatus" class="download-stream-status">Playback progress is being tracked for fraud protection.</div>
+                <div class="download-stream-title">Adaptive Streaming (HLS) Available</div>
+                <p class="download-stream-copy">This video plays in auto quality. Reward credit only counts after the configured watch thresholds are met.</p>
+                <video id="rewardStreamPlayer" class="download-stream-video" controls preload="metadata" playsinline>
+                    <?php if (($streamUrl ?? null) !== null): ?>
+                    <source src="<?= htmlspecialchars((string)$streamUrl) ?>" type="<?= htmlspecialchars((string)$displayMimeType) ?>">
+                    <?php endif; ?>
+                </video>
+                <div id="rewardStreamStatus" class="download-stream-status">Adaptive playback is being tracked for fraud protection.</div>
             </div>
+            <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+            <script>
+            (function() {
+                var video = document.getElementById("rewardStreamPlayer");
+                var src = <?= json_encode($hlsUrl) ?>;
+                if (!video || !src) return;
+                if (video.canPlayType("application/vnd.apple.mpegurl")) {
+                    video.src = src;
+                } else if (window.Hls && window.Hls.isSupported()) {
+                    var hls = new window.Hls({ maxBufferLength: 30 });
+                    hls.loadSource(src);
+                    hls.attachMedia(video);
+                } else if (window.Hls) {
+                    video.src = src;
+                }
+            })();
+            </script>
             <?php elseif (($streamUrl ?? null) !== null): ?>
             <div class="download-stream-card">
                 <div class="download-stream-title">Streaming Preview Enabled</div>
@@ -219,15 +236,9 @@ $downloadActionButtonTitle = !empty($downloadAlreadySaved) ? 'Already in your ac
                 <?php endif; ?>
             </form>
 
-            <?php if (!empty($showAds)): ?>
+            <?php if (!empty($showAds) && trim((string)($adBottom ?? '')) !== ''): ?>
             <div class="download-page-bottom-ad">
                 <?= $adBottom ?>
-            </div>
-            <?php endif; ?>
-
-            <?php if (!empty($showAds) && ($adPopunder ?? '') !== ''): ?>
-            <div id="adPopunderWrap" class="download-page-popunder" aria-hidden="true">
-                <?= $adPopunder ?>
             </div>
             <?php endif; ?>
 
@@ -751,7 +762,7 @@ if (cancelAbuseModalBtn) {
 }
 <?php endif; ?>
 
-<?php if ((($streamUrl ?? null) !== null || ($hlsUrl ?? null) !== null) && ($streamSessionId ?? null) !== null): ?>
+<?php if (($streamUrl ?? null) !== null && ($streamSessionId ?? null) !== null): ?>
 (function() {
     const player = document.getElementById("rewardStreamPlayer");
     const status = document.getElementById("rewardStreamStatus");
@@ -802,42 +813,6 @@ if (cancelAbuseModalBtn) {
         completed = true;
         sendUpdate("complete");
     });
-})();
-<?php endif; ?>
-
-<?php if (($hlsUrl ?? null) !== null): ?>
-(function() {
-    const player = document.getElementById("rewardStreamPlayer");
-    if (!player) return;
-    const hlsUrl = <?= json_encode((string)$hlsUrl) ?>;
-
-    function attach() {
-        if (window.Hls && Hls.isSupported()) {
-            const hls = new Hls({ enableWorker: false });
-            hls.loadSource(hlsUrl);
-            hls.attachMedia(player);
-            hls.on(Hls.Events.ERROR, function(event, data) {
-                if (!data || !data.fatal) return;
-                if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-                    hls.startLoad();
-                } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-                    hls.recoverMediaError();
-                }
-            });
-        } else if (player.canPlayType("application/vnd.apple.mpegurl")) {
-            player.src = hlsUrl;
-        }
-    }
-
-    if (window.Hls) {
-        attach();
-    } else {
-        const s = document.createElement("script");
-        s.src = "https://cdn.jsdelivr.net/npm/hls.js@1";
-        s.async = true;
-        s.onload = attach;
-        document.head.appendChild(s);
-    }
 })();
 <?php endif; ?>
 </script>

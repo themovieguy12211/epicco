@@ -21,6 +21,8 @@ use App\Controller\Admin\FileController as AdminFileController;
 use App\Controller\Api\RewardsApiController;
 use App\Controller\Api\UploadApiController;
 use App\Controller\Api\UploaderApiController;
+use App\Controller\EmbedController;
+use App\Controller\HlsController;
 
 // Public Routes
 $router->get('/', [HomeController::class, 'index']);
@@ -102,13 +104,11 @@ $router->post('/trash/empty', [FileController::class, 'emptyTrash']);
 $router->get('/file/{id}', [FileController::class, 'show']);
 $router->post('/file/generate-link', [FileController::class, 'generateLink']);
 $router->post('/file/rename', [FileController::class, 'rename']);
-$router->post('/file/update-embed', [FileController::class, 'updateEmbed']);
-$router->post('/file/stream-heartbeat', [FileController::class, 'streamHeartbeat']);
-$router->get('/embed/{id}', [FileController::class, 'embed']);
 $router->get('/download/{id}', [FileController::class, 'download']);
 $router->get('/download/{id}/{name:.+}', [FileController::class, 'download']);
 $router->get('/thumbnail/{hash:.+}', [FileController::class, 'thumbnail']);
-$router->get('/stream/hls/{token}/{path:.+}', [FileController::class, 'streamHls']);
+$router->get('/embed/{id}', [EmbedController::class, 'show']);
+$router->get('/stream/hls/{token}/{path:.+}', [HlsController::class, 'show']);
 
 $router->post('/folder/create', [FolderController::class, 'create']);
 $router->post('/folder/rename', [FolderController::class, 'rename']);
@@ -130,7 +130,6 @@ $router->get('/admin/site-content/export', [SiteContentController::class, 'expor
 $router->post('/admin/site-content/import', [SiteContentController::class, 'import']);
 $router->post('/admin/diagnostics/export', [ConfigurationController::class, 'exportDiagnostics']);
 $router->post('/admin/cron/trigger', [ConfigurationController::class, 'triggerCron']);
-$router->post('/admin/video-transcode/retry', [ConfigurationController::class, 'retryFailedTranscodes']);
 $router->post('/admin/email/test-connection', [ConfigurationController::class, 'testSmtpConnection']);
 $router->post('/admin/email/test-send', [ConfigurationController::class, 'sendTestEmail']);
 

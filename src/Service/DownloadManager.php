@@ -174,7 +174,38 @@ class DownloadManager
         return "attachment; filename=\"{$fallback}\"; filename*=UTF-8''{$encoded}";
     }
 
-    public function previewDelivery(array $file): array
+    private function buildStreamContentDisposition(string $filename): string
+    {
+        $filename = trim($filename);
+        if ($filename === '') {
+            $filename = 'video';
+        }
+
+        $fallback = preg_replace('/[^A-Za-z0-9._-]+/', '_', $filename) ?: 'video';
+        $encoded = rawurlencode($filename);
+
+        return "inline; filename=\"{$fallback}\"; filename*=UTF-8''{$encoded}";
+    }
+
+    private function resolveStreamMimeType(array $file): string
+    {
+        $mimeType = (string)($file['mime_type'] ?? 'video/mp4');
+        if (str_starts_with($mimeType, 'ENC:')) {
+            try {
+                $mimeType = \App\Service\EncryptionService::decrypt($mimeType);
+            } catch (\Throwable $e) {
+                $mimeType = 'video/mp4';
+            }
+        }
+
+        if (!preg_match('#^[a-z0-9.+-]+/[a-z0-9.+-]+$#i', $mimeType)) {
+            return 'video/mp4';
+        }
+
+        return str_starts_with($mimeType, 'video/') ? $mimeType : 'video/mp4';
+    }
+
+    public function previewDelivery(array $file, bool $forStream = false): array
     {
         $db = Database::getInstance()->getConnection();
         $provider = StorageManager::getProviderById($file['file_server_id'] ? (int)$file['file_server_id'] : null, $db);
@@ -189,6 +220,36 @@ class DownloadManager
                 'url' => null,
                 'reason' => 'ppd_progress_tracking_enabled',
             ];
+        }
+
+        // Streams are inline playback, not attachment downloads: filename
+        // preservation does not matter, so B2 can use signed URLs like
+        // every other S3 backend instead of forcing php_proxy.
+        if ($forStream && !empty($capabilities['presigned_download'])) {
+            $cdnUrl = $this->buildCdnDownloadUrl($file);
+            if ($cdnUrl !== null) {
+                return [
+                    'mode' => 'cdn',
+                    'url' => $cdnUrl,
+                    'reason' => 'public_object_storage_cdn_stream',
+                ];
+            }
+
+            $streamMime = $this->resolveStreamMimeType($file);
+            $streamUrl = $provider->getPresignedUrl($file['storage_path'], 300, [
+                'response_content_disposition' => $this->buildStreamContentDisposition((string)($file['filename'] ?? 'video')),
+                'response_content_type' => $streamMime,
+            ]);
+            if (!$streamUrl) {
+                $streamUrl = $provider->getPresignedUrl($file['storage_path'], 300);
+            }
+            if ($streamUrl) {
+                return [
+                    'mode' => 'signed_origin',
+                    'url' => $streamUrl,
+                    'reason' => $isBackblaze ? 'backblaze_signed_stream' : 'signed_origin_stream',
+                ];
+            }
         }
 
         if (!empty($capabilities['presigned_download'])) {

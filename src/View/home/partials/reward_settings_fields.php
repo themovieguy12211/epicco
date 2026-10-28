@@ -76,6 +76,19 @@
             <?php endif; ?>
         </select>
     </div>
+
+    <?php $currentAdTier = \App\Service\AdLoadService::normalizeTier($user['ad_tier'] ?? 'full'); ?>
+    <label class="reward-settings-label" style="margin-top:1rem">Ad Level On Your Files</label>
+    <p class="reward-settings-copy">
+        Fewer ads means cleaner links for your viewers, but a smaller cut of every payout. Your pick multiplies with the site ad tier - e.g. you at 50% while the site runs Full still earns 50%.
+    </p>
+    <div class="form-group reward-settings-group">
+        <select name="ad_tier" class="form-control reward-settings-select">
+            <?php foreach (['full' => 'Full ads · 100% of your rate', '75' => 'Reduced ads · 75%', '50' => 'Half ads · 50%', '25' => 'Minimal ads · 25%', 'zero' => 'Almost ad-free · 0% (1 popunder only)'] as $tierValue => $tierLabel): ?>
+                <option value="<?= $tierValue ?>" <?= $currentAdTier === $tierValue ? 'selected' : '' ?>><?= $tierLabel ?></option>
+            <?php endforeach; ?>
+        </select>
+    </div>
 </div>
 
 <h4 class="reward-settings-heading">Withdrawal & Payment Settings</h4>

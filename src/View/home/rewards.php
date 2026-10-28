@@ -770,6 +770,11 @@ include __DIR__ . '/partials/account_sidebar_styles.php';
                         <div class="rewards-summary-copy">Your reward model controls how qualifying traffic turns into earnings.</div>
                     </div>
                     <div class="rewards-summary-card">
+                        <div class="rewards-summary-label">Ads on your files</div>
+                        <div class="rewards-summary-value"><?= htmlspecialchars(\App\Service\AdLoadService::tierLabel((string)($user['ad_tier'] ?? 'full'))) ?></div>
+                        <div class="rewards-summary-copy">Fewer ads, smaller cut. Change it in Settings &gt; Rewards &amp; Payout.</div>
+                    </div>
+                    <div class="rewards-summary-card">
                         <div class="rewards-summary-label">Payment method</div>
                         <div class="rewards-summary-value"><?= htmlspecialchars($paymentMethodLabel) ?></div>
                         <div class="rewards-summary-copy"><?= $savedPayoutConfigured ? 'This saved payout processor and saved payout destination will be used when you request a payout.' : ($paymentMethodRaw !== '' && !$savedMethodSupported ? 'Your saved payout processor is no longer enabled. Choose another payout processor in Settings before requesting payout.' : 'Add and save payout destination details before submitting your first payout request.') ?></div>

@@ -40,6 +40,9 @@ $modelLabelMap = [
 $currentModelLabel = $user && !empty($user['monetization_model']) ? ($modelLabelMap[(string)$user['monetization_model']] ?? ucfirst((string)$user['monetization_model'])) : null;
 $paymentMethodRaw = strtolower(trim((string)($user['payment_method'] ?? '')));
 $paymentMethodLabel = $paymentMethodRaw !== '' ? \App\Service\PayoutProcessorService::label($paymentMethodRaw) : 'Not set';
+$revenueShare = isset($revenueShare) ? (int)$revenueShare : (int)\App\Service\AdLoadService::revenueSharePercent();
+$adLoadTierLabel = isset($adLoadTier) ? (string)$adLoadTier : \App\Service\AdLoadService::currentTier();
+$adLoadTierLabel = $adLoadTierLabel === 'zero' ? '0% (cost-cover pop only)' : ($adLoadTierLabel === 'full' ? 'Full ads' : $adLoadTierLabel . '% ads');
 ?>
 
 <style>
@@ -172,6 +175,11 @@ $paymentMethodLabel = $paymentMethodRaw !== '' ? \App\Service\PayoutProcessorSer
                     <span class="affiliate-toolbar-note"><?= SiteContentService::renderInlineMarkdown((string)($affiliateEnabled ? ($affiliateHeader['toolbar_enabled'] ?? 'Choose your earning model, review current PPD rates, and manage the referral link tied to your account.') : ($affiliateHeader['toolbar_disabled'] ?? 'Choose your earning model, review current PPD rates, and track the rewards tools available on your account.')), $siteContentTokens) ?></span>
                 </div>
             </div>
+        </div>
+
+        <div class="affiliate-hero-card" style="margin-bottom:1rem;border-left:4px solid var(--primary-color,#2563eb)">
+            <div style="font-weight:800">Current revenue share: <?= (int)$revenueShare ?>% (<?= htmlspecialchars($adLoadTierLabel) ?>)</div>
+            <div class="affiliate-toolbar-note">Payouts scale with the site ad-load tier. At 0% views still count but earn nothing - a single cost-cover popunder still serves.<?php if (!empty($user)): ?> Your files use <strong><?= htmlspecialchars(\App\Service\AdLoadService::tierLabel((string)($user['ad_tier'] ?? 'full'))) ?></strong> - change it in <a href="/settings#rewardsSection">Settings &gt; Rewards &amp; Payout</a>.<?php endif; ?></div>
         </div>
 
         <div class="affiliate-hero-card">

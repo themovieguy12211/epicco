@@ -17,8 +17,7 @@
     <h6 class="fw-bold text-dark small text-uppercase mb-2">Ad Placements</h6>
     <ul class="extra-small text-muted mb-4">
         <li class="mb-2"><strong>Top / Bottom / Left / Right:</strong> HTML or ad code injected into the download page layout.</li>
-        <li class="mb-2"><strong>Overlay:</strong> Full-page or interstitial code that runs before or during the download flow.</li>
-        <li><strong>Popunder:</strong> A new browser window that opens <em>behind</em> the download page. Paste the full popunder JS/HTML tag from your network; it binds to the first visitor click so the popup is not blocked.</li>
+        <li><strong>Overlay:</strong> Full-page or interstitial code that runs before or during the download flow.</li>
     </ul>
 
     <h6 class="fw-bold text-dark small text-uppercase mb-2">PPD Tier Table</h6>

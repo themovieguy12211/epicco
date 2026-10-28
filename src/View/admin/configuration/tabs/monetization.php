@@ -6,6 +6,17 @@ $adRight = $adRight ?? '';
 $adBottom = $adBottom ?? '';
 $adOverlay = $adOverlay ?? '';
 $adPopunder = $adPopunder ?? '';
+$adNative = $adNative ?? '';
+$adGeoRules = $adGeoRules ?? [];
+$adLoadTier = in_array(($adLoadTier ?? 'full'), ['full', '75', '50', '25', 'zero'], true) ? $adLoadTier : 'full';
+$adLoadTier = in_array(($adLoadTier ?? 'full'), ['full', '75', '50', '25', 'zero'], true) ? $adLoadTier : 'full';
+$adLoadOptions = [
+    'full' => ['label' => 'Full ads · 100% rev', 'hint' => 'Popunder + overlay + all banners + floating native.'],
+    '75' => ['label' => '75% ads · 75% rev', 'hint' => 'Popunder + all banners + native. No overlay modal.'],
+    '50' => ['label' => '50% ads · 50% rev', 'hint' => 'Popunder + top/bottom + native.'],
+    '25' => ['label' => '25% ads · 25% rev', 'hint' => 'Popunder + floating native only.'],
+    'zero' => ['label' => '0% · 0 rev', 'hint' => '1 popunder only. Covers costs, uploaders earn nothing.'],
+];
 $tiers = $tiers ?? [];
 $exampleTiers = $exampleTiers ?? [];
 $bonusOfferDefinitions = $bonusOfferDefinitions ?? \App\Service\BonusOfferService::definitions();
@@ -883,9 +894,25 @@ $rewardsActive = true;
             <?= \App\Core\Csrf::field() ?>
             <input type="hidden" name="section" value="monetization">
             <input type="hidden" name="monetization_action" value="ads">
+            <input type="hidden" name="monetization_return" value="ads">
 
             <div class="config-soft-callout config-section-card">
                 These ad fields intentionally accept raw HTML and JavaScript ad tags. Only paste code you trust. The script now redacts these blocks from the admin activity log, and oversized ad blocks are rejected.
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Ad Load Tier (controls slots shown + revenue share)</label>
+                <div class="d-grid gap-2">
+                    <?php foreach ($adLoadOptions as $tierKey => $tierInfo): ?>
+                    <label class="border rounded-3 p-3 d-flex gap-3 align-items-start" style="cursor:pointer">
+                        <input class="form-check-input mt-1" type="radio" name="ad_load_tier" value="<?= $tierKey ?>" <?= $adLoadTier === $tierKey ? 'checked' : '' ?>>
+                        <span>
+                            <span class="fw-bold d-block"><?= htmlspecialchars($tierInfo['label']) ?></span>
+                            <span class="config-form-note"><?= htmlspecialchars($tierInfo['hint']) ?></span>
+                        </span>
+                    </label>
+                    <?php endforeach; ?>
+                </div>
             </div>
 
             <div class="mb-4">
@@ -911,21 +938,92 @@ $rewardsActive = true;
 
             <div class="mb-4">
                 <label class="form-label fw-bold">Interstitial / Overlay Ad</label>
-                <div class="config-form-note extra-small mb-2">Typically used for full-page interstitials or modal dialogs that appear before the download begins.</div>
+                <div class="config-form-note extra-small mb-2">Typically used for full-page pop-unders or modal dialogs that appear before the download begins.</div>
                 <textarea class="form-control font-monospace" name="ads[download_overlay]" rows="4"><?= htmlspecialchars($adOverlay ?? '') ?></textarea>
             </div>
 
             <div class="mb-4">
-                <label class="form-label fw-bold">Popunder Ad</label>
-                <div class="config-form-note extra-small mb-2">A popunder opens a new browser window <strong>behind</strong> the current page. Paste the full JavaScript/HTML tag from your popunder network (PopAds, Adsterra, HilltopAds, Monetag, etc.). The tag usually binds to the first visitor click so the popup is not blocked.</div>
-                <textarea class="form-control font-monospace" name="ads[download_popunder]" rows="5" placeholder="<script type=&quot;text/javascript&quot;>...popunder code...</script>"><?= htmlspecialchars($adPopunder ?? '') ?></textarea>
+                <label class="form-label fw-bold">Popunder Network Code (PopAds / HilltopAds / Monetag)</label>
+                <div class="config-form-note extra-small mb-2">Paste the popunder tag here. It renders hidden on file pages and on <code>/embed/{id}</code> players, and fires on the visitor's first click/play. Keep frequency capping in the ad-network dashboard, not here.</div>
+                <textarea class="form-control font-monospace" name="ads[popunder]" rows="4"><?= htmlspecialchars($adPopunder ?? '') ?></textarea>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label fw-bold">Floating / Native Banner (video + file pages)</label>
+                <div class="config-form-note extra-small mb-2">Dismissible banner pinned above the player on <code>/file/{id}</code> and <code>/embed/{id}</code>. Use a responsive native unit here. Disabled automatically on the 0% tier except the single popunder.</div>
+                <textarea class="form-control font-monospace" name="ads[native]" rows="4"><?= htmlspecialchars($adNative ?? '') ?></textarea>
             </div>
 
             <div class="config-sticky-save">
-                <p class="config-sticky-save__text">Ad placement code runs on the public download surface, so keep it trusted, intentional, and as small as possible.</p>
+                <p class="config-sticky-save__text">Base ad codes run everywhere unless a geo rule below overrides them. Base slot visibility still follows the ad load tier above.</p>
                 <button type="submit" class="btn btn-primary px-5">Save Ad Placements</button>
             </div>
         </form>
+
+        <!-- Geo ad rules: multiple codes + per-country overrides -->
+        <div class="card border-0 shadow-sm config-section-card mt-4">
+            <div class="card-body">
+                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+                    <div>
+                        <h6 class="fw-bold mb-1">Geo Ad Rules (multiple codes per country)</h6>
+                        <div class="config-form-note">Visitors are matched by country (Cloudflare <code>CF-IPCountry</code> header). First use-case: US/EU traffic gets your premium PopAds tag, the rest get a fallback. Duplicate a country across rows to <strong>rotate</strong> creatives - one matching row is picked at random per pageview. A row tier overrides the global ad load for those visitors, and the same tier scales their PPD payout.</div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addGeoRuleModal">
+                        <i class="bi bi-plus-circle me-1"></i> Add Geo Rule
+                    </button>
+                </div>
+
+                <?php if (empty($adGeoRules)): ?>
+                    <div class="config-form-note">No geo rules yet - the base codes above serve all visitors. Requires Cloudflare (or a CDN sending a country header) for matching; otherwise base codes serve.</div>
+                <?php else: ?>
+                <form method="POST" action="/admin/configuration/save">
+                    <?= \App\Core\Csrf::field() ?>
+                    <input type="hidden" name="section" value="monetization">
+                    <input type="hidden" name="monetization_action" value="update_geo_rules">
+                    <?php foreach ($adGeoRules as $geoRule): $geoId = (string)($geoRule['id'] ?? ''); ?>
+                    <div class="border rounded-3 p-3 mb-3">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Rule name</label>
+                                <input type="text" class="form-control" name="geo_rules[<?= htmlspecialchars($geoId) ?>][name]" value="<?= htmlspecialchars((string)($geoRule['name'] ?? '')) ?>" maxlength="80">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label fw-bold">Countries (ISO)</label>
+                                <input type="text" class="form-control font-monospace" name="geo_rules[<?= htmlspecialchars($geoId) ?>][countries]" value="<?= htmlspecialchars(implode(', ', (array)($geoRule['countries'] ?? []))) ?>" placeholder="US, CA, GB">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-bold">Tier override</label>
+                                <select class="form-select" name="geo_rules[<?= htmlspecialchars($geoId) ?>][tier]">
+                                    <option value="" <?= empty($geoRule['tier']) ? 'selected' : '' ?>>Use global tier</option>
+                                    <?php foreach (['full' => 'Full · 100%', '75' => '75%', '50' => '50%', '25' => '25%', 'zero' => '0% · pop only'] as $tierKey => $tierLabel): ?>
+                                    <option value="<?= $tierKey ?>" <?= (($geoRule['tier'] ?? '') === $tierKey) ? 'selected' : '' ?>><?= $tierLabel ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="col-md-1 d-flex align-items-end justify-content-end">
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-delete-geo-rule-id="<?= htmlspecialchars($geoId) ?>">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="row g-3">
+                            <?php foreach (['popunder' => 'Popunder', 'top' => 'Top banner', 'bottom' => 'Bottom banner', 'native' => 'Floating native', 'overlay' => 'Overlay'] as $slotKey => $slotLabel): ?>
+                            <div class="col-md-6">
+                                <label class="form-label"><?= $slotLabel ?> override <span class="text-muted">(blank = base code)</span></label>
+                                <textarea class="form-control font-monospace" rows="2" name="geo_rules[<?= htmlspecialchars($geoId) ?>][slots][<?= $slotKey ?>]"><?= htmlspecialchars((string)(($geoRule['slots'] ?? [])[$slotKey] ?? '')) ?></textarea>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <div class="config-sticky-save">
+                        <p class="config-sticky-save__text">Geo changes apply on the next pageview - no cron wait. Payouts for matching visitors scale with the effective tier.</p>
+                        <button type="submit" class="btn btn-primary px-5">Save Geo Rules</button>
+                    </div>
+                </form>
+                <?php endif; ?>
+            </div>
+        </div>
     </div>
 
     <!-- PPD Tiers -->
@@ -1071,6 +1169,56 @@ $rewardsActive = true;
     <input type="hidden" name="monetization_action" value="delete_tier">
     <input type="hidden" name="tier_id" id="deleteTierId">
 </form>
+
+<!-- Add Geo Rule Modal -->
+<div class="modal fade" id="addGeoRuleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <form method="POST" action="/admin/configuration/save">
+                <?= \App\Core\Csrf::field() ?>
+                <input type="hidden" name="section" value="monetization">
+                <input type="hidden" name="monetization_action" value="add_geo_rule">
+                <div class="modal-header border-bottom-0">
+                    <h5 class="modal-title fw-bold">Add Geo Ad Rule</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4 pt-0">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Rule Name</label>
+                        <input type="text" name="geo_name" class="form-control" required placeholder="e.g. US premium pop">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Country ISO Codes</label>
+                        <input type="text" name="geo_countries" class="form-control" required placeholder="US, CA">
+                        <small class="text-muted">Comma separated. Duplicate a country in another row to rotate creatives.</small>
+                    </div>
+                    <div class="mb-0">
+                        <label class="form-label fw-bold">Tier Override</label>
+                        <select class="form-select" name="geo_tier">
+                            <option value="">Use global tier</option>
+                            <option value="full">Full · 100%</option>
+                            <option value="75">75%</option>
+                            <option value="50">50%</option>
+                            <option value="25">25%</option>
+                            <option value="zero">0% · pop only</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer border-top-0">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary px-4">Create Rule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<form id="deleteGeoRuleForm" method="POST" action="/admin/configuration/save">
+    <?= \App\Core\Csrf::field() ?>
+    <input type="hidden" name="section" value="monetization">
+    <input type="hidden" name="monetization_action" value="delete_geo_rule">
+    <input type="hidden" name="rule_id" id="deleteGeoRuleId">
+</form>
 <?php endif; ?>
 
 <script>
@@ -1081,6 +1229,16 @@ async function deleteTier(id) {
     })) {
         document.getElementById('deleteTierId').value = id;
         document.getElementById('deleteTierForm').submit();
+    }
+}
+
+async function deleteGeoRule(id) {
+    if (await window.adminConfirm('Delete this geo ad rule? Visitors fall back to the base ad codes.', {
+        title: 'Delete Geo Rule',
+        confirmLabel: 'Delete Rule'
+    })) {
+        document.getElementById('deleteGeoRuleId').value = id;
+        document.getElementById('deleteGeoRuleForm').submit();
     }
 }
 
@@ -1195,6 +1353,13 @@ function syncBonusMetricOptions() {
 document.addEventListener('click', function(event) {
     const deleteButton = event.target.closest('[data-delete-tier-id]');
     if (!deleteButton) {
+        const geoDeleteButton = event.target.closest('[data-delete-geo-rule-id]');
+        if (geoDeleteButton) {
+            const ruleId = geoDeleteButton.getAttribute('data-delete-geo-rule-id');
+            if (ruleId) {
+                deleteGeoRule(ruleId);
+            }
+        }
         return;
     }
 

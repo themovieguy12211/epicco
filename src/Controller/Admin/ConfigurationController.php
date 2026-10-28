@@ -39,8 +39,10 @@ class ConfigurationController
         'download_left',
         'download_right',
         'download_overlay',
-        'download_popunder',
+        'popunder',
+        'native',
     ];
+    private const ALLOWED_AD_LOAD_TIERS = ['full', '75', '50', '25', 'zero'];
 
     private function abortText(int $status, string $message): void
     {
@@ -79,7 +81,18 @@ class ConfigurationController
         }
 
         $_SESSION['config_errors'] = [$message];
-        header('Location: /admin/configuration');
+        $tab = trim((string)($_POST['section'] ?? 'general'));
+        $redirect = '/admin/configuration';
+        if ($tab === 'monetization') {
+            $pane = $this->resolveMonetizationReturnPane(
+                (string)($_POST['monetization_return'] ?? ''),
+                trim((string)($_POST['monetization_action'] ?? 'ads'))
+            );
+            $redirect .= '?tab=monetization' . ($pane !== '' ? '&monetization_pane=' . urlencode($pane) : '');
+        } elseif ($tab !== '') {
+            $redirect .= '?tab=' . urlencode($tab);
+        }
+        header('Location: ' . $redirect);
         exit;
     }
 
@@ -177,29 +190,6 @@ class ConfigurationController
         }
 
         return rtrim($url, '/');
-    }
-
-    private function normalizeTranscodeResolutions(?string $raw): string
-    {
-        $raw = trim((string)$raw);
-        if ($raw === '') {
-            return '1080';
-        }
-
-        $heights = [];
-        foreach (explode(',', $raw) as $part) {
-            $height = (int)trim($part);
-            if ($height >= 144 && $height <= 2160 && !in_array($height, $heights, true)) {
-                $heights[] = $height;
-            }
-        }
-
-        if ($heights === []) {
-            throw new \RuntimeException('Transcode resolutions must be a comma-separated list of heights between 144 and 2160 (for example 1080).');
-        }
-
-        sort($heights);
-        return implode(',', $heights);
     }
 
     private function normalizeNginxCompletionLogPath(?string $path): string
@@ -534,7 +524,10 @@ class ConfigurationController
             'adLeft' => (string)Setting::get('ad_download_left', ''),
             'adRight' => (string)Setting::get('ad_download_right', ''),
             'adOverlay' => (string)Setting::get('ad_download_overlay', ''),
-            'adPopunder' => (string)Setting::get('ad_download_popunder', ''),
+            'adPopunder' => (string)Setting::get('ad_popunder', ''),
+            'adNative' => (string)Setting::get('ad_native', ''),
+            'adLoadTier' => $this->resolveAdLoadTier(),
+            'adGeoRules' => \App\Service\AdLoadService::geoRules(),
             'tiers' => $tiers,
             'exampleTiers' => $exampleTiers,
             'rewardsEnabled' => \App\Service\FeatureService::rewardsEnabled(),
@@ -596,9 +589,6 @@ class ConfigurationController
             'cdnDownloadRedirectsEnabled' => Setting::get('cdn_download_redirects_enabled', '0'),
             'cdnDownloadBaseUrl' => Setting::get('cdn_download_base_url', ''),
             'streamingSupportEnabled' => Setting::get('streaming_support_enabled', '0'),
-            'videoTranscodeEnabled' => Setting::get('video_transcode_enabled', '0'),
-            'videoTranscodeResolutions' => Setting::get('video_transcode_resolutions', '1080'),
-            'videoTranscodeConcurrent' => Setting::get('video_transcode_concurrent', '1'),
             'nginxCompletionLogPath' => Setting::get('nginx_completion_log_path', ''),
             'nginxCompletionRetentionDays' => Setting::get('nginx_completion_retention_days', '7'),
             'nginxCompletionMaxLinesPerRun' => Setting::get('nginx_completion_max_lines_per_run', '5000'),
@@ -743,7 +733,15 @@ class ConfigurationController
                 'error' => $e->getMessage(),
             ]);
             $_SESSION['config_errors'] = [$bonusReviewAction ? $e->getMessage() : 'The settings could not be saved. Review the form values and try again.'];
-            if ($bonusReviewAction) {
+            if ($tab === 'monetization' && !$bonusReviewAction) {
+                $fallbackPane = $this->resolveMonetizationReturnPane(
+                    (string)($_POST['monetization_return'] ?? ''),
+                    $monetizationAction
+                );
+                if ($fallbackPane !== '') {
+                    $tab = 'monetization&monetization_pane=' . urlencode($fallbackPane);
+                }
+            } elseif ($bonusReviewAction) {
                 $tab = 'monetization&monetization_pane=' . urlencode(
                     $this->resolveMonetizationReturnPane(
                         (string)($_POST['monetization_return'] ?? ''),
@@ -772,6 +770,45 @@ class ConfigurationController
         };
     }
 
+    private function normalizeGeoRuleCountries(string $raw): array
+    {
+        $out = [];
+        foreach (explode(',', strtoupper($raw)) as $part) {
+            $code = trim((string)$part);
+            if (preg_match('/^[A-Z]{2}$/', $code) === 1 && !in_array($code, $out, true)) {
+                $out[] = $code;
+            }
+        }
+        return $out;
+    }
+
+    private function collectGeoRuleSlots(mixed $posted): array
+    {
+        if (!is_array($posted)) {
+            return [];
+        }
+
+        $slots = [];
+        foreach ($posted as $slot => $code) {
+            $slot = strtolower(trim((string)$slot));
+            $code = (string)$code;
+            if ($slot === '' || trim($code) === '') {
+                continue;
+            }
+            if (strlen($code) > self::MAX_AD_CODE_LENGTH) {
+                throw new \RuntimeException('A geo ad rule block exceeds ' . self::MAX_AD_CODE_LENGTH . ' bytes.');
+            }
+            $slots[$slot] = $code;
+        }
+        return $slots;
+    }
+
+    private function resolveAdLoadTier(): string
+    {
+        $tier = strtolower(trim((string)\App\Model\Setting::get('ad_load_tier', 'full')));
+        return in_array($tier, self::ALLOWED_AD_LOAD_TIERS, true) ? $tier : 'full';
+    }
+
     private function resolveMonetizationReturnPane(string $requestedPane, string $action): string
     {
         $requestedPane = trim($requestedPane);
@@ -782,6 +819,7 @@ class ConfigurationController
         return match (trim($action)) {
             'rewards_settings' => 'rewards',
             'ads' => 'ads',
+            'add_geo_rule', 'update_geo_rules', 'delete_geo_rule' => 'ads',
             'add_tier', 'delete_tier', 'load_example_tiers', 'update_tiers' => 'tiers',
             'save_bonus_offer', 'delete_bonus_offer', 'approve_bonus_award', 'reject_bonus_award' => 'bonus-offers',
             default => '',
@@ -936,31 +974,6 @@ class ConfigurationController
 
         $_SESSION['config_success'] = true;
         header("Location: /admin/configuration?tab=cron");
-        exit;
-    }
-
-    public function retryFailedTranscodes()
-    {
-        $this->requireConfigurationAccess();
-        $this->ensureDemoAdminReadOnly();
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-            $this->abortText(405, "Method not allowed");
-        }
-        if (!Csrf::verify($_POST['csrf_token'] ?? '')) {
-            $this->abortText(403, "CSRF mismatch");
-        }
-
-        \App\Service\Database\SchemaService::ensureTables(['video_transcode_jobs'], false);
-        $db = Database::getInstance()->getConnection();
-        $stmt = $db->prepare("UPDATE video_transcode_jobs SET status = 'pending', progress = 0, error_message = NULL, started_at = NULL, completed_at = NULL WHERE status = 'failed'");
-        $stmt->execute();
-        $retried = $stmt->rowCount();
-
-        $_SESSION['config_success'] = true;
-        $_SESSION['config_success_message'] = $retried > 0
-            ? $retried . ' failed transcode job' . ($retried === 1 ? '' : 's') . ' queued for retry.'
-            : 'There are no failed transcode jobs to retry.';
-        header("Location: /admin/configuration?tab=downloads");
         exit;
     }
 
@@ -1142,8 +1155,12 @@ class ConfigurationController
             $this->updateSetting('reserved_usernames', $_POST['reserved_usernames'] ?? 'administrator,admin,support', 'general');
             $this->updateSetting('admin_notification_email', $_POST['admin_notification_email'] ?? '', 'general');
             $this->updateSetting('show_powered_by_footer', isset($_POST['show_powered_by_footer']) ? '1' : '0', 'general');
-            $this->updateSetting('video.ffmpeg_enabled', isset($_POST['ffmpeg_enabled']) ? '1' : '0', 'general');
-            $this->updateSetting('video.ffmpeg_path', trim((string)($_POST['ffmpeg_path'] ?? '')), 'general');
+            if (array_key_exists('ffmpeg_enabled', $_POST)) {
+                $this->updateSetting('video.ffmpeg_enabled', isset($_POST['ffmpeg_enabled']) ? '1' : '0', 'general');
+            }
+            if (array_key_exists('ffmpeg_path', $_POST)) {
+                $this->updateSetting('video.ffmpeg_path', trim((string)($_POST['ffmpeg_path'] ?? '')), 'general');
+            }
             $this->logConfigChange('general', $before, $this->captureSettingSnapshot($settingKeys));
         });
         return true;
@@ -1380,9 +1397,6 @@ class ConfigurationController
             'cdn_download_redirects_enabled',
             'cdn_download_base_url',
             'streaming_support_enabled',
-            'video_transcode_enabled',
-            'video_transcode_resolutions',
-            'video_transcode_concurrent',
             'nginx_completion_log_path',
             'nginx_completion_retention_days',
             'nginx_completion_max_lines_per_run',
@@ -1396,9 +1410,6 @@ class ConfigurationController
             $this->updateSetting('cdn_download_redirects_enabled', isset($_POST['cdn_download_redirects_enabled']) ? '1' : '0', 'downloads');
             $this->updateSetting('cdn_download_base_url', $this->normalizeCdnDownloadBaseUrl($_POST['cdn_download_base_url'] ?? ''), 'downloads');
             $this->updateSetting('streaming_support_enabled', isset($_POST['streaming_support_enabled']) ? '1' : '0', 'downloads');
-            $this->updateSetting('video_transcode_enabled', isset($_POST['video_transcode_enabled']) ? '1' : '0', 'downloads');
-            $this->updateSetting('video_transcode_resolutions', $this->normalizeTranscodeResolutions($_POST['video_transcode_resolutions'] ?? ''), 'downloads');
-            $this->updateSetting('video_transcode_concurrent', (string)max(1, min(5, (int)($_POST['video_transcode_concurrent'] ?? 1))), 'downloads');
             $this->updateSetting('nginx_completion_log_path', $this->normalizeNginxCompletionLogPath($_POST['nginx_completion_log_path'] ?? ''), 'downloads');
             $this->updateSetting('nginx_completion_retention_days', (string)max(1, (int)($_POST['nginx_completion_retention_days'] ?? 7)), 'downloads');
             $this->updateSetting('nginx_completion_max_lines_per_run', (string)max(100, (int)($_POST['nginx_completion_max_lines_per_run'] ?? 5000)), 'downloads');
@@ -1546,26 +1557,100 @@ class ConfigurationController
             }
         } elseif ($action === 'ads') {
             $settingKeys = array_map(static fn(string $key): string => 'ad_' . $key, self::ALLOWED_AD_SLOT_KEYS);
+            $settingKeys[] = 'ad_load_tier';
+            $settingKeys[] = 'ad_geo_rules';
             $before = $this->captureSettingSnapshot($settingKeys);
             $ads = $_POST['ads'] ?? [];
+            if (!is_array($ads)) {
+                $ads = [];
+            }
+            $loadTier = strtolower(trim((string)($_POST['ad_load_tier'] ?? 'full')));
+            if (!in_array($loadTier, self::ALLOWED_AD_LOAD_TIERS, true)) {
+                $loadTier = 'full';
+            }
             foreach ($ads as $key => $code) {
                 if (!in_array((string)$key, self::ALLOWED_AD_SLOT_KEYS, true)) {
                     continue;
                 }
                 if (strlen((string)$code) > self::MAX_AD_CODE_LENGTH) {
-                    $_SESSION['config_errors'] = ["Ad placement code is too large. Keep each ad block under " . self::MAX_AD_CODE_LENGTH . " characters."];
+                    $_SESSION['config_errors'] = ["Ad placement code is too large. Keep each ad block under " . self::MAX_AD_CODE_LENGTH . " bytes."];
                     header("Location: /admin/configuration?tab=monetization&monetization_pane=ads");
                     exit;
                 }
             }
-            $this->runConfigurationWriteTransaction(function () use ($ads, $before, $settingKeys): void {
+            $this->runConfigurationWriteTransaction(function () use ($ads, $before, $settingKeys, $loadTier): void {
                 foreach ($ads as $key => $code) {
                     if (!in_array((string)$key, self::ALLOWED_AD_SLOT_KEYS, true)) {
                         continue;
                     }
                     $this->updateSetting("ad_{$key}", (string)$code, 'ads');
                 }
+                $this->updateSetting('ad_load_tier', $loadTier, 'ads');
                 $this->logConfigChange('monetization ads', $before, $this->captureSettingSnapshot($settingKeys));
+            });
+        } elseif ($action === 'add_geo_rule') {
+            $name = trim((string)($_POST['geo_name'] ?? ''));
+            $countries = $this->normalizeGeoRuleCountries((string)($_POST['geo_countries'] ?? ''));
+            $tier = strtolower(trim((string)($_POST['geo_tier'] ?? '')));
+            if ($tier !== '' && !in_array($tier, self::ALLOWED_AD_LOAD_TIERS, true)) {
+                $tier = '';
+            }
+            if ($name === '' || $countries === []) {
+                $_SESSION['config_errors'] = ['Geo ad rules need a name and at least one valid 2-letter country code.'];
+                header("Location: /admin/configuration?tab=monetization&monetization_pane=ads");
+                exit;
+            }
+            $this->runConfigurationWriteTransaction(function () use ($name, $countries, $tier): void {
+                $rules = \App\Service\AdLoadService::geoRules();
+                $rules[] = [
+                    'id' => 'gr_' . bin2hex(random_bytes(6)),
+                    'name' => mb_substr($name, 0, 80),
+                    'countries' => $countries,
+                    'tier' => $tier,
+                    'slots' => $this->collectGeoRuleSlots($_POST['geo_slots'] ?? []),
+                ];
+                $this->updateSetting('ad_geo_rules', json_encode(array_values($rules), JSON_UNESCAPED_SLASHES), 'ads');
+                $this->logActivity('add_geo_ad_rule', $name, null, implode(',', $countries));
+            });
+        } elseif ($action === 'update_geo_rules') {
+            $posted = $_POST['geo_rules'] ?? [];
+            if (!is_array($posted)) {
+                $posted = [];
+            }
+            $this->runConfigurationWriteTransaction(function () use ($posted): void {
+                $rules = [];
+                foreach ($posted as $id => $row) {
+                    if (!is_array($row)) {
+                        continue;
+                    }
+                    $countries = $this->normalizeGeoRuleCountries((string)($row['countries'] ?? ''));
+                    if ($countries === []) {
+                        continue;
+                    }
+                    $tier = strtolower(trim((string)($row['tier'] ?? '')));
+                    if ($tier !== '' && !in_array($tier, self::ALLOWED_AD_LOAD_TIERS, true)) {
+                        $tier = '';
+                    }
+                    $rules[] = [
+                        'id' => (string)$id,
+                        'name' => mb_substr(trim((string)($row['name'] ?? '')), 0, 80),
+                        'countries' => $countries,
+                        'tier' => $tier,
+                        'slots' => $this->collectGeoRuleSlots($row['slots'] ?? []),
+                    ];
+                }
+                $this->updateSetting('ad_geo_rules', json_encode(array_values($rules), JSON_UNESCAPED_SLASHES), 'ads');
+                $this->logActivity('update_geo_ad_rules', (string)count($rules) . ' rules');
+            });
+        } elseif ($action === 'delete_geo_rule') {
+            $id = trim((string)($_POST['rule_id'] ?? ''));
+            $this->runConfigurationWriteTransaction(function () use ($id): void {
+                $rules = array_values(array_filter(
+                    \App\Service\AdLoadService::geoRules(),
+                    static fn(array $rule): bool => (string)($rule['id'] ?? '') !== $id
+                ));
+                $this->updateSetting('ad_geo_rules', json_encode($rules, JSON_UNESCAPED_SLASHES), 'ads');
+                $this->logActivity('delete_geo_ad_rule', $id);
             });
         } elseif ($action === 'add_tier') {
             $name = trim($_POST['new_name'] ?? '');
@@ -1857,6 +1942,11 @@ class ConfigurationController
 
     private function summarizeSettingValueForLog(string $key, string $value): string
     {
+        // Tier names are safe to log in plain text; codes stay redacted.
+        if ($key === 'ad_load_tier') {
+            return $value !== '' ? $value : '[not configured]';
+        }
+
         $sensitiveKeys = [
             'seo_custom_head_code',
             'ad_download_top',
@@ -1864,6 +1954,9 @@ class ConfigurationController
             'ad_download_left',
             'ad_download_right',
             'ad_download_overlay',
+            'ad_popunder',
+            'ad_native',
+            'ad_geo_rules',
         ];
 
         if (in_array($key, $sensitiveKeys, true) || str_starts_with($key, 'ad_')) {

@@ -26,9 +26,11 @@ Options -MultiViews -Indexes +FollowSymLinks
 # ============================================================
 # Security Headers
 # ============================================================
+# /embed/* must stay framable on third-party sites for Dood-style embeds.
+SetEnvIf Request_URI "^/embed/" NO_XFO
 <IfModule mod_headers.c>
     Header always set X-Content-Type-Options "nosniff"
-    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Frame-Options "SAMEORIGIN" env=!NO_XFO
     Header always set Referrer-Policy "strict-origin-when-cross-origin"
     Header always set X-XSS-Protection "1; mode=block"
     # The application sets a per-request CSP with nonces at runtime.

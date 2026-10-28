@@ -57,6 +57,10 @@ $embedShowAds = !empty($showAds);
         <div class="embed-ad"><?= $adBottom ?></div>
     <?php endif; ?>
 
+    <?php if ($embedShowAds && trim((string)($adNative ?? '')) !== ''): ?>
+        <div class="embed-ad" id="embedNativeAd"><?= $adNative ?></div>
+    <?php endif; ?>
+
     <?php if ($embedShowAds && ($adPopunder ?? '') !== ''): ?>
         <div style="display:none"><?= $adPopunder ?></div>
     <?php endif; ?>
