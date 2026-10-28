@@ -35,6 +35,16 @@ $showPromotions = \App\Service\FeatureService::rewardsEnabled()
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars((string)$pageLocale) ?>">
 <head>
+    <script>
+    try {
+        var fyuhlsTheme = localStorage.getItem('fyuhls-theme') || 'dark';
+        if (fyuhlsTheme !== 'dark' && fyuhlsTheme !== 'light') { fyuhlsTheme = 'dark'; }
+        document.documentElement.setAttribute('data-theme', fyuhlsTheme);
+        document.documentElement.setAttribute('data-bs-theme', fyuhlsTheme);
+    } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($resolvedTitle) ?></title>
@@ -139,6 +149,10 @@ $showPromotions = \App\Service\FeatureService::rewardsEnabled()
             <?php if ($showPromotions): ?>
                 <a href="<?= htmlspecialchars(\App\Service\SiteContentService::localizeUrl('/promotions', $pageLocale)) ?>" class="home-nav-link">Promotions</a>
             <?php endif; ?>
+            <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">
+                <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+            </button>
 
             <?php if (\App\Core\Auth::check()): ?>
                 <a href="/notifications" class="home-notification-link">

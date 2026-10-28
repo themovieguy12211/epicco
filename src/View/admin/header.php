@@ -252,6 +252,16 @@ $helpTitleMap = [
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script>
+    try {
+        var fyuhlsTheme = localStorage.getItem('fyuhls-theme') || 'dark';
+        if (fyuhlsTheme !== 'dark' && fyuhlsTheme !== 'light') { fyuhlsTheme = 'dark'; }
+        document.documentElement.setAttribute('data-theme', fyuhlsTheme);
+        document.documentElement.setAttribute('data-bs-theme', fyuhlsTheme);
+    } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin - <?= htmlspecialchars($siteName) ?></title>
@@ -394,6 +404,11 @@ $helpTitleMap = [
 
                 <hr class="mx-3">
                 <ul class="nav flex-column mb-2 admin-sidebar-footer-links text-start px-3">
+                    <li class="nav-item">
+                        <button type="button" class="nav-link btn btn-link w-100 text-start text-decoration-none" data-theme-toggle>
+                            <i class="bi bi-moon-stars me-2"></i> Toggle Dark Mode
+                        </button>
+                    </li>
                     <li class="nav-item">
                         <a class="nav-link" href="/">
                             <i class="bi bi-box-arrow-left me-2"></i> Back to Site

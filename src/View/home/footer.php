@@ -219,6 +219,21 @@ $footerLinks = array_merge($footerDefaultLinks, array_values(array_map(static fu
         }
     });
     </script>
+    <script>
+    document.addEventListener('click', function(event) {
+        var toggle = event.target.closest('[data-theme-toggle]');
+        if (!toggle) {
+            return;
+        }
+        try {
+            var root = document.documentElement;
+            var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            root.setAttribute('data-theme', next);
+            root.setAttribute('data-bs-theme', next);
+            localStorage.setItem('fyuhls-theme', next);
+        } catch (e) {}
+    });
+    </script>
     <?= $extraBottom ?? '' ?>
 </body>
 </html>

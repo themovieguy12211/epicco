@@ -230,5 +230,20 @@ document.addEventListener('submit', function(event) {
 
 <!-- Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('click', function(event) {
+    var toggle = event.target.closest('[data-theme-toggle]');
+    if (!toggle) {
+        return;
+    }
+    try {
+        var root = document.documentElement;
+        var next = root.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        root.setAttribute('data-theme', next);
+        root.setAttribute('data-bs-theme', next);
+        localStorage.setItem('fyuhls-theme', next);
+    } catch (e) {}
+});
+</script>
 </body>
 </html>
