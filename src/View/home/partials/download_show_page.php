@@ -29,6 +29,21 @@
     .download-stream-copy{margin:0 0 .75rem;color:#334155;font-size:.9rem}
     .download-stream-video{width:100%;max-height:420px;border-radius:10px;background:#000}
     .download-stream-status{margin-top:.65rem;font-size:.85rem;color:#475569}
+    .watch-head{display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1rem}
+    .watch-head__main{min-width:0;flex:1}
+    .watch-title{font-size:1.25rem;font-weight:700;line-height:1.3;margin:0 0 .5rem;overflow-wrap:anywhere;word-break:break-word;color:#0f172a}
+    .watch-meta{display:flex;flex-wrap:wrap;gap:.4rem .9rem;font-size:.85rem;color:#64748b}
+    .watch-meta-item{display:inline-flex;align-items:center;gap:.35rem}
+    .watch-meta-report{padding:0;background:none;border:none;color:#94a3b8;font-size:.85rem;cursor:pointer}
+    .watch-meta-report:hover{text-decoration:underline;color:#64748b}
+    .watch-head__actions{display:flex;gap:.45rem;flex:0 0 auto;padding-top:.15rem}
+    .watch-player{background:#000;border-radius:12px;overflow:hidden;margin:0 0 .6rem}
+    .watch-player video{width:100%;max-height:62vh;display:block;background:#000}
+    .watch-status{margin:0 0 1.25rem;font-size:.82rem;color:#64748b}
+    html[data-theme="dark"] .watch-title{color:var(--text-color)}
+    html[data-theme="dark"] .watch-meta{color:var(--text-muted)}
+    html[data-theme="dark"] .watch-meta-report{color:var(--text-muted)}
+    html[data-theme="dark"] .watch-status{color:var(--text-muted)}
     .download-stream-disabled{margin:0 0 1.5rem;padding:1rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:12px;color:#475569;font-size:.9rem}
     .download-captcha-wrap{margin-bottom:1.5rem}
     .download-captcha-copy{font-size:.875rem;color:#475569;margin:0 0 .75rem}
@@ -121,60 +136,55 @@ $downloadActionButtonTitle = !empty($downloadAlreadySaved) ? 'Already in your ac
             </div>
             <?php endif; ?>
 
-            <div class="download-file-bar">
-                <div class="download-file-bar__icon" aria-hidden="true">&#8681;</div>
-                <div class="download-file-bar__body">
-                    <div class="download-file-bar__header">
-                        <h1 class="download-page-title"><?= htmlspecialchars((string)($downloadFile['filename'] ?? 'File')) ?></h1>
-                        <?php if (!empty($canDeleteFile) || !empty($downloadActionVisible)): ?>
-                        <div class="download-file-bar__actions">
-                            <?php if (!empty($canDeleteFile)): ?>
-                                <button
-                                    type="button"
-                                    id="downloadDeleteBtn"
-                                    class="download-file-action download-file-action--delete"
-                                    title="Move file to trash"
-                                    aria-label="Move file to trash"
-                                >&#128465;</button>
-                            <?php endif; ?>
-                            <?php if (!empty($downloadActionVisible)): ?>
-                                <button
-                                    type="button"
-                                    id="downloadSaveBtn"
-                                    class="download-file-action <?= !empty($downloadAlreadySaved) ? 'download-file-action--save-active' : '' ?>"
-                                    title="<?= htmlspecialchars($downloadActionButtonTitle) ?>"
-                                    aria-label="<?= htmlspecialchars($downloadActionButtonTitle) ?>"
-                                    <?= !empty($downloadAlreadySaved) ? 'disabled' : '' ?>
-                                ><?= !empty($downloadAlreadySaved) ? '&#10003;' : '+' ?></button>
-                            <?php endif; ?>
-                        </div>
-                        <?php endif; ?>
-                    </div>
-                    <div class="download-file-bar__meta">
+            <div class="watch-head">
+                <div class="watch-head__main">
+                    <h1 class="watch-title"><?= htmlspecialchars((string)($downloadFile['filename'] ?? 'File')) ?></h1>
+                    <div class="watch-meta">
                         <?php if ($downloadUploadedLabel !== ''): ?>
-                            <span class="download-file-bar__meta-item">Uploaded on <?= htmlspecialchars($downloadUploadedLabel) ?></span>
+                            <span class="watch-meta-item">Uploaded on <?= htmlspecialchars($downloadUploadedLabel) ?></span>
                         <?php endif; ?>
-                        <span class="download-file-bar__meta-item"><?= round(((int)($downloadFile['file_size'] ?? 0)) / 1024 / 1024, 2) ?> MB</span>
-                        <span class="download-file-bar__meta-item"><?= number_format($downloadDownloads) ?> downloads</span>
+                        <span class="watch-meta-item"><?= round(((int)($downloadFile['file_size'] ?? 0)) / 1024 / 1024, 2) ?> MB</span>
+                        <span class="watch-meta-item"><?= number_format($downloadDownloads) ?> downloads</span>
                         <?php if (!empty($abuseReportsEnabled)): ?>
-                            <button type="button" id="openAbuseModalBtn" class="download-file-bar__meta-button">Report abuse</button>
+                            <button type="button" id="openAbuseModalBtn" class="watch-meta-report">Report abuse</button>
                         <?php endif; ?>
                     </div>
                 </div>
+                <?php if (!empty($canDeleteFile) || !empty($downloadActionVisible)): ?>
+                <div class="watch-head__actions">
+                    <?php if (!empty($canDeleteFile)): ?>
+                        <button
+                            type="button"
+                            id="downloadDeleteBtn"
+                            class="download-file-action download-file-action--delete"
+                            title="Move file to trash"
+                            aria-label="Move file to trash"
+                        >&#128465;</button>
+                    <?php endif; ?>
+                    <?php if (!empty($downloadActionVisible)): ?>
+                        <button
+                            type="button"
+                            id="downloadSaveBtn"
+                            class="download-file-action <?= !empty($downloadAlreadySaved) ? 'download-file-action--save-active' : '' ?>"
+                            title="<?= htmlspecialchars($downloadActionButtonTitle) ?>"
+                            aria-label="<?= htmlspecialchars($downloadActionButtonTitle) ?>"
+                            <?= !empty($downloadAlreadySaved) ? 'disabled' : '' ?>
+                        ><?= !empty($downloadAlreadySaved) ? '&#10003;' : '+' ?></button>
+                    <?php endif; ?>
+                </div>
+                <?php endif; ?>
             </div>
             <div id="downloadActionStatus" class="download-action-status" aria-live="polite"></div>
 
             <?php if (($hlsUrl ?? null) !== null): ?>
-            <div class="download-stream-card">
-                <div class="download-stream-title">Adaptive Streaming (HLS) Available</div>
-                <p class="download-stream-copy">This video plays in auto quality. Reward credit only counts after the configured watch thresholds are met.</p>
-                <video id="rewardStreamPlayer" class="download-stream-video" controls preload="metadata" playsinline>
+            <div class="watch-player">
+                <video id="rewardStreamPlayer" controls preload="metadata" playsinline>
                     <?php if (($streamUrl ?? null) !== null): ?>
                     <source src="<?= htmlspecialchars((string)$streamUrl) ?>" type="<?= htmlspecialchars((string)$displayMimeType) ?>">
                     <?php endif; ?>
                 </video>
-                <div id="rewardStreamStatus" class="download-stream-status">Adaptive playback is being tracked for fraud protection.</div>
             </div>
+            <div id="rewardStreamStatus" class="watch-status">Auto quality &bull; playback is tracked for rewards.</div>
             <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
             <script>
             (function() {
@@ -193,16 +203,14 @@ $downloadActionButtonTitle = !empty($downloadAlreadySaved) ? 'Already in your ac
             })();
             </script>
             <?php elseif (($streamUrl ?? null) !== null): ?>
-            <div class="download-stream-card">
-                <div class="download-stream-title">Streaming Preview Enabled</div>
-                <p class="download-stream-copy">This video can be streamed directly in the browser. Reward credit only counts after the configured watch thresholds are met.</p>
-                <video id="rewardStreamPlayer" class="download-stream-video" controls preload="metadata">
+            <div class="watch-player">
+                <video id="rewardStreamPlayer" controls preload="metadata" playsinline>
                     <source src="<?= htmlspecialchars((string)$streamUrl) ?>" type="<?= htmlspecialchars((string)$displayMimeType) ?>">
                 </video>
-                <div id="rewardStreamStatus" class="download-stream-status">Playback progress is being tracked for fraud protection.</div>
             </div>
+            <div id="rewardStreamStatus" class="watch-status">Playback progress is being tracked for rewards.</div>
             <?php elseif (!empty($streamingEligible)): ?>
-            <div class="download-stream-disabled">Streaming support is enabled for this video, but the browser player is hidden when countdown or captcha gates are active. The standard download flow below still works.</div>
+            <div class="download-stream-disabled">Streaming is ready, but the player is hidden while countdown or captcha gates are active. The download button below still works.</div>
             <?php endif; ?>
 
             <form method="POST" action="/file/generate-link" id="downloadForm">

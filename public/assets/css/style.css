@@ -105,6 +105,57 @@ body {
     background: var(--warning-hover);
 }
 
+/* ================= Video host theme =================
+   Dood/FileMoon-style dark first impression. The hero is dark in
+   both themes on purpose - video sites live in the player. */
+.hero-copy {
+    background:
+        radial-gradient(600px 220px at 85% -10%, rgba(59, 130, 246, 0.28), transparent 70%),
+        radial-gradient(480px 200px at 5% 110%, rgba(34, 211, 238, 0.14), transparent 70%),
+        linear-gradient(135deg, #0b1530 0%, #0e1c3d 55%, #0a0f1e 100%);
+    border-color: #1e3a6e;
+    color-scheme: dark;
+}
+.hero-kicker { color: #7dd3fc; }
+.hero-copy h1, .hero h1 { color: #f2f6ff; }
+.hero-copy .hero-rich-copy, .hero-copy .hero-rich-copy p, .hero p { color: #a8b8d4; }
+.hero-meta span {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #c6d4ea;
+}
+.hero-copy .btn-outline {
+    color: #dbeafe;
+    border-color: rgba(147, 197, 253, 0.55);
+}
+.hero-copy .btn-outline:hover {
+    background: rgba(59, 130, 246, 0.16);
+    border-color: #93c5fd;
+    color: #fff;
+}
+.hero-copy .btn:not(.btn-outline) {
+    box-shadow: 0 8px 28px -6px rgba(59, 130, 246, 0.55);
+}
+.hero-panel {
+    background: linear-gradient(160deg, #101d3d 0%, #0b142c 100%);
+    border: 1px solid #1e3a6e;
+}
+.price-card-paid:not(.featured) { border-color: #1e3a6e; }
+.price-card.featured, .price-card-paid {
+    box-shadow: 0 12px 40px -12px rgba(59, 130, 246, 0.35);
+}
+.price-card-badge {
+    background: linear-gradient(135deg, #2563eb, #0891b2);
+    color: #fff;
+    border: 0;
+}
+.section-final-cta .final-cta-card {
+    background:
+        radial-gradient(500px 200px at 50% -20%, rgba(59, 130, 246, 0.25), transparent 70%),
+        var(--card-bg);
+    border-color: #1e3a6e;
+}
+
 
 .alert {
     padding: 0.75rem;

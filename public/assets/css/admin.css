@@ -32,6 +32,86 @@ html[data-theme="dark"] .admin-sidebar-group-toggle:hover { background: rgba(122
 html[data-theme="dark"] .main-content .page-header { border-bottom-color: var(--border-color); }
 html[data-theme="dark"] .main-content .page-header h1 { color: var(--text-color); }
 
+/* ============ Admin dark surfaces ============
+   Admin views share one light design language (white cards, #f8fafc
+   panels, slate text), so pattern selectors cover all 35 inline-
+   styled views at once. Colored status pills/badges are intentionally
+   left alone so their semantics survive. */
+html[data-theme="dark"] .main-content [class*="-card"],
+html[data-theme="dark"] .main-content [class*="-panel"],
+html[data-theme="dark"] .main-content [class*="-section"],
+html[data-theme="dark"] .main-content [class*="-box"],
+html[data-theme="dark"] .main-content [class*="-note"],
+html[data-theme="dark"] .main-content [class*="-modal"],
+html[data-theme="dark"] .main-content [class*="-form"],
+html[data-theme="dark"] .main-content [class*="-list"],
+html[data-theme="dark"] .main-content [class*="-wrap"],
+html[data-theme="dark"] .main-content [class*="-empty"],
+html[data-theme="dark"] .main-content [class*="-preview"],
+html[data-theme="dark"] .main-content [class*="-console"],
+html[data-theme="dark"] .main-content [class*="-feed"] {
+    background-color: var(--card-bg);
+    border-color: var(--border-color);
+}
+html[data-theme="dark"] .main-content [class*="-item"],
+html[data-theme="dark"] .main-content [class*="-row"],
+html[data-theme="dark"] .main-content [class*="-header"],
+html[data-theme="dark"] .main-content [class*="-thread"] {
+    border-color: var(--border-color);
+}
+html[data-theme="dark"] .main-content [class*="-title"],
+html[data-theme="dark"] .main-content [class*="-label"],
+html[data-theme="dark"] .main-content [class*="-value"],
+html[data-theme="dark"] .main-content [class*="-name"],
+html[data-theme="dark"] .main-content [class*="-heading"] {
+    color: var(--text-color);
+}
+html[data-theme="dark"] .main-content [class*="-copy"],
+html[data-theme="dark"] .main-content [class*="-meta"],
+html[data-theme="dark"] .main-content [class*="-description"],
+html[data-theme="dark"] .main-content [class*="-detail"],
+html[data-theme="dark"] .main-content [class*="-subtitle"],
+html[data-theme="dark"] .main-content [class*="-text"] {
+    color: var(--text-muted);
+}
+/* Text links keep working on dark surfaces */
+html[data-theme="dark"] .main-content a[class*="-link"] { color: #7aa5ff; }
+/* Code / log / console blocks */
+html[data-theme="dark"] .main-content pre,
+html[data-theme="dark"] .main-content code,
+html[data-theme="dark"] .main-content [class*="-console"],
+html[data-theme="dark"] .main-content [class*="-pre"],
+html[data-theme="dark"] .main-content [class*="-command"] {
+    background-color: #0a0f1e;
+    border-color: var(--border-color);
+    color: #c9d6ec;
+}
+/* Custom inputs outside Bootstrap */
+html[data-theme="dark"] .main-content input,
+html[data-theme="dark"] .main-content select,
+html[data-theme="dark"] .main-content textarea {
+    background-color: #0d1730;
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+html[data-theme="dark"] .main-content input::placeholder,
+html[data-theme="dark"] .main-content textarea::placeholder {
+    color: #5b6b8c;
+}
+/* Tables that are not Bootstrap-driven */
+html[data-theme="dark"] .main-content table th,
+html[data-theme="dark"] .main-content table td {
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+html[data-theme="dark"] .main-content table th {
+    background-color: #0d1730;
+}
+/* Progress tracks */
+html[data-theme="dark"] .main-content [class*="-track"] {
+    background-color: #1a2540;
+}
+
 .admin-action-modal {
     position: fixed;
     inset: 0;

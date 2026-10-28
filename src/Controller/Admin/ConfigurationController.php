@@ -335,6 +335,23 @@ class ConfigurationController
         $demoAdmin = DemoModeService::currentViewerIsDemoAdmin();
         $ffmpegEnabled = Setting::getOrConfig('video.ffmpeg_enabled', '1');
         $ffmpegPath = $demoAdmin ? '' : Setting::getOrConfig('video.ffmpeg_path', \App\Core\Config::get('video.ffmpeg_path', ''));
+        $transcodeCounts = ['pending' => null, 'processing' => null, 'ready' => null, 'failed' => null];
+        try {
+            $db = Database::getInstance()->getConnection();
+            if ($db) {
+                foreach (array_keys($transcodeCounts) as $status) {
+                    try {
+                        $stmt = $db->prepare("SELECT COUNT(*) FROM video_transcode_jobs WHERE status = ?");
+                        $stmt->execute([$status]);
+                        $transcodeCounts[$status] = (int)$stmt->fetchColumn();
+                    } catch (\Throwable $e) {
+                        $transcodeCounts[$status] = null;
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Jobs table may not exist until Deep Repair runs.
+        }
         return [
             'appName' => Setting::getOrConfig('app.name', \App\Core\Config::get('app_name', 'Fyuhls')),
             'allowRegistrations' => Setting::get('allow_registrations', '1'),
@@ -348,6 +365,9 @@ class ConfigurationController
             'ffmpegEnabled' => $ffmpegEnabled,
             'ffmpegPath' => $ffmpegPath,
             'ffmpegOk' => $ffmpegEnabled === '1' && !empty($ffmpegPath) && file_exists($ffmpegPath),
+            'transcodeEnabled' => Setting::get('video_transcode_enabled', '0'),
+            'transcodeResolutions' => Setting::get('video_transcode_resolutions', '1080'),
+            'transcodeCounts' => $transcodeCounts,
         ];
     }
 
@@ -527,6 +547,7 @@ class ConfigurationController
             'adPopunder' => (string)Setting::get('ad_popunder', ''),
             'adNative' => (string)Setting::get('ad_native', ''),
             'adLoadTier' => $this->resolveAdLoadTier(),
+            'adTierCodes' => \App\Service\AdLoadService::tierCodes(),
             'adGeoRules' => \App\Service\AdLoadService::geoRules(),
             'tiers' => $tiers,
             'exampleTiers' => $exampleTiers,
@@ -770,8 +791,34 @@ class ConfigurationController
         };
     }
 
-    private function normalizeGeoRuleCountries(string $raw): array
+    private function encodeTierCodes(mixed $posted): string
     {
+        if (!is_array($posted)) {
+            return json_encode([], JSON_UNESCAPED_SLASHES);
+        }
+
+        $out = [];
+        foreach ($posted as $tier => $slots) {
+            $tier = strtolower(trim((string)$tier));
+            if (!in_array($tier, self::ALLOWED_AD_LOAD_TIERS, true) || !is_array($slots)) {
+                continue;
+            }
+            foreach ($slots as $slot => $code) {
+                $slot = strtolower(trim((string)$slot));
+                $code = (string)$code;
+                if ($slot === '' || trim($code) === '') {
+                    continue;
+                }
+                if (strlen($code) > self::MAX_AD_CODE_LENGTH) {
+                    throw new \RuntimeException('A per-tier ad block exceeds ' . self::MAX_AD_CODE_LENGTH . ' bytes.');
+                }
+                $out[$tier][$slot] = $code;
+            }
+        }
+        return json_encode($out, JSON_UNESCAPED_SLASHES);
+    }
+
+    private function normalizeGeoRuleCountries(string $raw): array    {
         $out = [];
         foreach (explode(',', strtoupper($raw)) as $part) {
             $code = trim((string)$part);
@@ -1119,6 +1166,8 @@ class ConfigurationController
             'show_powered_by_footer',
             'video.ffmpeg_enabled',
             'video.ffmpeg_path',
+            'video_transcode_enabled',
+            'video_transcode_resolutions',
         ];
         $before = $this->captureSettingSnapshot($settingKeys);
 
@@ -1155,15 +1204,31 @@ class ConfigurationController
             $this->updateSetting('reserved_usernames', $_POST['reserved_usernames'] ?? 'administrator,admin,support', 'general');
             $this->updateSetting('admin_notification_email', $_POST['admin_notification_email'] ?? '', 'general');
             $this->updateSetting('show_powered_by_footer', isset($_POST['show_powered_by_footer']) ? '1' : '0', 'general');
-            if (array_key_exists('ffmpeg_enabled', $_POST)) {
-                $this->updateSetting('video.ffmpeg_enabled', isset($_POST['ffmpeg_enabled']) ? '1' : '0', 'general');
-            }
+            // Unchecked boxes don't post: on this full-form save, absent means off.
+            $this->updateSetting('video.ffmpeg_enabled', isset($_POST['ffmpeg_enabled']) ? '1' : '0', 'general');
             if (array_key_exists('ffmpeg_path', $_POST)) {
                 $this->updateSetting('video.ffmpeg_path', trim((string)($_POST['ffmpeg_path'] ?? '')), 'general');
             }
+            // Media controls live on the same General form: unchecked means off.
+            $this->updateSetting('video_transcode_enabled', isset($_POST['video_transcode_enabled']) ? '1' : '0', 'general');
+            $resolutions = $this->normalizeTranscodeResolutions((string)($_POST['transcode_resolutions'] ?? '1080'));
+            $this->updateSetting('video_transcode_resolutions', $resolutions, 'general');
             $this->logConfigChange('general', $before, $this->captureSettingSnapshot($settingKeys));
         });
         return true;
+    }
+
+    private function normalizeTranscodeResolutions(string $raw): string
+    {
+        $out = [];
+        foreach (explode(',', $raw) as $part) {
+            $height = (int)trim((string)$part);
+            if ($height >= 144 && $height <= 2160 && !in_array($height, $out, true)) {
+                $out[] = $height;
+            }
+        }
+        sort($out);
+        return $out !== [] ? implode(',', $out) : '1080';
     }
 
     private function saveEmailSettings(): bool
@@ -1559,6 +1624,7 @@ class ConfigurationController
             $settingKeys = array_map(static fn(string $key): string => 'ad_' . $key, self::ALLOWED_AD_SLOT_KEYS);
             $settingKeys[] = 'ad_load_tier';
             $settingKeys[] = 'ad_geo_rules';
+            $settingKeys[] = 'ad_tier_codes';
             $before = $this->captureSettingSnapshot($settingKeys);
             $ads = $_POST['ads'] ?? [];
             if (!is_array($ads)) {
@@ -1568,6 +1634,8 @@ class ConfigurationController
             if (!in_array($loadTier, self::ALLOWED_AD_LOAD_TIERS, true)) {
                 $loadTier = 'full';
             }
+            $tierCodesPosted = array_key_exists('tier_codes', $_POST);
+            $loadTierPosted = array_key_exists('ad_load_tier', $_POST);
             foreach ($ads as $key => $code) {
                 if (!in_array((string)$key, self::ALLOWED_AD_SLOT_KEYS, true)) {
                     continue;
@@ -1578,14 +1646,21 @@ class ConfigurationController
                     exit;
                 }
             }
-            $this->runConfigurationWriteTransaction(function () use ($ads, $before, $settingKeys, $loadTier): void {
+            $this->runConfigurationWriteTransaction(function () use ($ads, $before, $settingKeys, $loadTier, $tierCodesPosted, $loadTierPosted): void {
                 foreach ($ads as $key => $code) {
                     if (!in_array((string)$key, self::ALLOWED_AD_SLOT_KEYS, true)) {
                         continue;
                     }
                     $this->updateSetting("ad_{$key}", (string)$code, 'ads');
                 }
-                $this->updateSetting('ad_load_tier', $loadTier, 'ads');
+                // Each ads form only carries its own fields: the tier-code
+                // form must not reset the global tier and vice versa.
+                if ($loadTierPosted) {
+                    $this->updateSetting('ad_load_tier', $loadTier, 'ads');
+                }
+                if ($tierCodesPosted) {
+                    $this->updateSetting('ad_tier_codes', $this->encodeTierCodes($_POST['tier_codes'] ?? []), 'ads');
+                }
                 $this->logConfigChange('monetization ads', $before, $this->captureSettingSnapshot($settingKeys));
             });
         } elseif ($action === 'add_geo_rule') {
@@ -1956,6 +2031,7 @@ class ConfigurationController
             'ad_download_overlay',
             'ad_popunder',
             'ad_native',
+            'ad_tier_codes',
             'ad_geo_rules',
         ];
 

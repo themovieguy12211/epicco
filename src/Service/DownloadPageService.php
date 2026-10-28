@@ -59,6 +59,16 @@ class DownloadPageService
             ];
         }
 
+        // Dood-style player embed for video files.
+        if ($this->isVideoFile($file) && !empty($file['short_id'])) {
+            $embedUrl = $baseUrl . '/embed/' . rawurlencode((string)$file['short_id']);
+            $embedUrlHtml = htmlspecialchars($embedUrl, ENT_QUOTES, 'UTF-8');
+            $shareFields[] = [
+                'label' => 'Embed Code',
+                'value' => '<iframe src="' . $embedUrlHtml . '" width="640" height="360" frameborder="0" scrolling="no" allowfullscreen></iframe>',
+            ];
+        }
+
         return $shareFields;
     }
 

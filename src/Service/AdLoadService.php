@@ -128,6 +128,53 @@ class AdLoadService
     }
 
     /**
+     * Per-tier code overrides: ad_tier_codes JSON {tier: {slot: code}}.
+     * Lets the admin paste a different tag per intensity level, e.g. a
+     * premium popunder for Full and a lighter one for 25%.
+     */
+    public static function tierCodes(): array
+    {
+        static $cached = null;
+        if (is_array($cached)) {
+            return $cached;
+        }
+
+        $raw = trim((string)Setting::get('ad_tier_codes', ''));
+        if ($raw === '') {
+            return $cached = [];
+        }
+
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            return $cached = [];
+        }
+
+        $out = [];
+        foreach ($decoded as $tier => $slots) {
+            $tier = strtolower(trim((string)$tier));
+            if (!in_array($tier, self::TIERS, true) || !is_array($slots)) {
+                continue;
+            }
+            foreach ($slots as $slot => $code) {
+                $slot = strtolower(trim((string)$slot));
+                $code = (string)$code;
+                if ($slot !== '' && trim($code) !== '') {
+                    $out[$tier][$slot] = $code;
+                }
+            }
+        }
+
+        return $cached = $out;
+    }
+
+    public static function tierCode(string $tier, string $slot): string
+    {
+        $tier = self::normalizeTier($tier);
+        $slot = strtolower(trim($slot));
+        return (string)(self::tierCodes()[$tier][$slot] ?? '');
+    }
+
+    /**
      * Visitor country for ad geo-targeting. Uses the Cloudflare country
      * header when the site sits behind Cloudflare (free, no lookup);
      * otherwise null and the default ad codes serve (fail-open).
@@ -286,10 +333,9 @@ class AdLoadService
     }
 
     /**
-     * Request-aware slot code: geo-rule override wins over the global code,
-     * gated by the effective tier for the visitor's country AND the
-     * uploader's chosen tier (most restrictive wins, so an uploader picking
-     * 25% gets clean links even when the site runs Full).
+     * Request-aware slot code: geo-rule override wins, then the effective
+     * tier's own code set, then the base code. Gated by the effective tier
+     * (uploader choice intersected with site/geo tier).
      */
     public static function renderSlot(bool $showAds, string $slot, string $settingKey, string $uploaderTier = 'full'): string
     {
@@ -308,6 +354,11 @@ class AdLoadService
 
         if (is_array($rule) && isset($rule['slots'][$slot]) && trim((string)$rule['slots'][$slot]) !== '') {
             return (string)$rule['slots'][$slot];
+        }
+
+        $tierCode = self::tierCode($tier, $slot);
+        if ($tierCode !== '') {
+            return $tierCode;
         }
 
         return (string)Setting::get($settingKey, '');

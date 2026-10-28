@@ -192,15 +192,17 @@ $liveSetupCards = [
         <h1><?= SiteContentService::renderInlineMarkdown((string)($heroContent['title'] ?? 'Upload large files, share download links, and keep everything in one place.'), $siteContentTokens) ?></h1>
         <div class="hero-rich-copy"><?= SiteContentService::renderMarkdown((string)($heroContent['intro'] ?? ''), $siteContentTokens) ?></div>
         <div class="cta-group">
-            <?php if ($allowRegistrations): ?>
-                <a href="<?= htmlspecialchars(SiteContentService::localizeUrl('/register', $pageLocale)) ?>" class="btn btn-lg"><?= htmlspecialchars((string)($heroContent['primary_cta_label'] ?? 'Create Account')) ?></a>
-            <?php else: ?>
-                <a href="<?= htmlspecialchars(SiteContentService::localizeUrl('/login', $pageLocale)) ?>" class="btn btn-lg"><?= htmlspecialchars((string)($heroContent['primary_cta_label'] ?? 'Login')) ?></a>
-            <?php endif; ?>
-            <a href="#pricing" class="btn btn-lg btn-outline"><?= htmlspecialchars((string)($heroContent['features_cta_label'] ?? 'View Plans')) ?></a>
             <?php if ($guestUploadsAllowed): ?>
-                <a href="<?= htmlspecialchars(SiteContentService::localizeUrl('/upload', $pageLocale)) ?>" class="btn btn-lg btn-outline"><?= htmlspecialchars((string)($heroContent['guest_cta_label'] ?? 'Guest Upload')) ?></a>
+                <a href="<?= htmlspecialchars(SiteContentService::localizeUrl('/upload', $pageLocale)) ?>" class="btn btn-lg btn-primary"><?= htmlspecialchars((string)($heroContent['guest_cta_label'] ?? 'Upload Video')) ?></a>
+                <?php if ($allowRegistrations): ?>
+                    <a href="<?= htmlspecialchars(SiteContentService::localizeUrl('/register', $pageLocale)) ?>" class="btn btn-lg btn-outline"><?= htmlspecialchars((string)($heroContent['primary_cta_label'] ?? 'Create Account')) ?></a>
+                <?php endif; ?>
+            <?php elseif ($allowRegistrations): ?>
+                <a href="<?= htmlspecialchars(SiteContentService::localizeUrl('/register', $pageLocale)) ?>" class="btn btn-lg btn-primary"><?= htmlspecialchars((string)($heroContent['primary_cta_label'] ?? 'Create Account')) ?></a>
+            <?php else: ?>
+                <a href="<?= htmlspecialchars(SiteContentService::localizeUrl('/login', $pageLocale)) ?>" class="btn btn-lg btn-primary"><?= htmlspecialchars((string)($heroContent['primary_cta_label'] ?? 'Login')) ?></a>
             <?php endif; ?>
+            <a href="#pricing" class="btn btn-lg btn-outline"><?= htmlspecialchars((string)($heroContent['features_cta_label'] ?? 'Go Premium')) ?></a>
         </div>
         <div class="hero-meta">
             <span><?= htmlspecialchars($allowRegistrations ? (string)($heroContent['meta_registration_open'] ?? 'Registrations are open') : (string)($heroContent['meta_registration_closed'] ?? 'Registrations are currently closed')) ?></span>
@@ -439,29 +441,33 @@ $liveSetupCards = [
         margin: 0 auto;
     }
     .hero-copy {
-        background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
-        border: 1px solid var(--border-color);
+        background:
+            radial-gradient(600px 220px at 85% -10%, rgba(59, 130, 246, 0.28), transparent 70%),
+            radial-gradient(480px 200px at 5% 110%, rgba(34, 211, 238, 0.14), transparent 70%),
+            linear-gradient(135deg, #0b1530 0%, #0e1c3d 55%, #0a0f1e 100%);
+        border: 1px solid #1e3a6e;
         border-radius: 24px;
         padding: 3rem;
+        color-scheme: dark;
     }
     .hero-kicker {
         text-transform: uppercase;
         font-size: 0.75rem;
         letter-spacing: 0.12em;
-        color: var(--primary-color);
+        color: #7dd3fc;
         font-weight: 700;
         margin-bottom: 1rem;
     }
     .hero h1 {
         font-size: 3.4rem;
         font-weight: 800;
-        color: #1e3a8a;
+        color: #f2f6ff;
         margin-bottom: 1.25rem;
         line-height: 1.05;
     }
     .hero p {
         font-size: 1.125rem;
-        color: var(--text-muted);
+        color: #a8b8d4;
         max-width: 700px;
         margin: 0 0 2rem;
     }
@@ -542,9 +548,9 @@ $liveSetupCards = [
     }
     .hero-meta span {
         font-size: 0.8125rem;
-        color: #334155;
-        background: white;
-        border: 1px solid var(--border-color);
+        color: #c6d4ea;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.14);
         border-radius: 999px;
         padding: 0.45rem 0.85rem;
     }
@@ -566,6 +572,17 @@ $liveSetupCards = [
     }
     .btn-outline:hover {
         background: var(--primary-light);
+    }
+    .hero-copy .btn-outline {
+        color: #dbeafe;
+        border-color: rgba(147, 197, 253, 0.55);
+    }
+    .hero-copy .btn-outline:hover {
+        background: rgba(59, 130, 246, 0.16);
+        border-color: #93c5fd;
+    }
+    .hero-copy .btn:not(.btn-outline) {
+        box-shadow: 0 8px 28px -6px rgba(59, 130, 246, 0.55);
     }
     .section {
         padding: 4rem 2rem;

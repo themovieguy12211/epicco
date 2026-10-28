@@ -142,13 +142,19 @@ $showPromotions = \App\Service\FeatureService::rewardsEnabled()
         <a href="/" class="home-logo"><?= htmlspecialchars($siteName) ?></a>
 
         <div class="home-nav">
+            <a href="/" class="home-nav-link">Home</a>
+            <a href="<?= htmlspecialchars(\App\Service\SiteContentService::localizeUrl('/plans', $pageLocale)) ?>" class="home-nav-link">Premium</a>
             <a href="<?= htmlspecialchars(\App\Service\SiteContentService::localizeUrl('/faq', $pageLocale)) ?>" class="home-nav-link">FAQ</a>
-            <?php if ($showAffiliate): ?>
-                <a href="<?= htmlspecialchars(\App\Service\SiteContentService::localizeUrl('/affiliate', $pageLocale)) ?>" class="home-nav-link">Affiliate</a>
+            <a href="<?= htmlspecialchars(\App\Service\SiteContentService::localizeUrl('/api', $pageLocale)) ?>" class="home-nav-link">API</a>
+            <?php if (\App\Core\Auth::check()): ?>
+                <?php if ($showAffiliate): ?>
+                    <a href="<?= htmlspecialchars(\App\Service\SiteContentService::localizeUrl('/affiliate', $pageLocale)) ?>" class="home-nav-link">Affiliate</a>
+                <?php endif; ?>
+                <?php if ($showPromotions): ?>
+                    <a href="<?= htmlspecialchars(\App\Service\SiteContentService::localizeUrl('/promotions', $pageLocale)) ?>" class="home-nav-link">Promotions</a>
+                <?php endif; ?>
             <?php endif; ?>
-            <?php if ($showPromotions): ?>
-                <a href="<?= htmlspecialchars(\App\Service\SiteContentService::localizeUrl('/promotions', $pageLocale)) ?>" class="home-nav-link">Promotions</a>
-            <?php endif; ?>
+            <a href="<?= htmlspecialchars(\App\Service\SiteContentService::localizeUrl('/upload', $pageLocale)) ?>" class="home-nav-link home-nav-link--strong">Upload</a>
             <button type="button" class="theme-toggle" data-theme-toggle aria-label="Toggle dark mode" title="Toggle dark mode">
                 <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
                 <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>

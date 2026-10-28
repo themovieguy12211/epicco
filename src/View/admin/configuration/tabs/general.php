@@ -12,13 +12,13 @@
         <div class="config-section-intro">
             <div>
                 <h5 class="config-section-intro__title">General</h5>
-                <p class="config-section-intro__text">Manage the core site identity, member-facing platform switches, and preview the media features planned for an upcoming release.</p>
+                <p class="config-section-intro__text">Manage the core site identity, member-facing platform switches, thumbnail generation, and the HLS video transcoding pipeline.</p>
             </div>
         </div>
         <details class="config-help-panel">
             <summary>How this works</summary>
             <div class="config-help-panel__body">
-                <p>These are the install-wide defaults that define what the site is called, whether new users can sign up, and what upcoming media capabilities are planned next. Thumbnail generation and video transcoding are intentionally held for a later release.</p>
+                <p>These are the install-wide defaults that define what the site is called, whether new users can sign up, and how media is processed. Image thumbnails need the GD extension; video thumbnails and HLS renditions need the FFmpeg binary below. Transcoding runs on the cron heartbeat and serves through <code>/stream/hls/</code> and <code>/embed/</code> with no extra setup.</p>
             </div>
         </details>
 
@@ -94,36 +94,77 @@
 
     <div id="general-thumbnails"></div>
     <?php renderAdminCardStart('Thumbnail Generation', ['cardClass' => 'border-0 shadow-sm mb-4 config-section-card']); ?>
-        <div class="config-soft-callout config-soft-callout--info mb-4">
-            <h6 class="fw-bold mb-2"><i class="bi bi-hourglass-split me-2"></i>Coming soon</h6>
-            <p class="mb-2">Thumbnail generation for both images and videos is being held for a future release.</p>
-            <p class="mb-0">When it ships, image thumbnails will rely on PHP GD and video thumbnails will rely on FFmpeg.</p>
-        </div>
-
         <div class="row">
             <div class="col-lg-6 mb-4">
                 <label class="form-label fw-bold">Image Thumbnails</label>
-                <div class="config-soft-callout config-soft-callout--warning">
-                    <p class="mb-2"><i class="bi bi-image me-2"></i>Image thumbnail generation is not configurable in this release yet.</p>
-                    <p class="mb-0">We will wire in the GD-based generation flow in a later update.</p>
-                </div>
+                <?php if (!empty($gdOk)): ?>
+                    <div class="config-soft-callout config-soft-callout--success">
+                        <p class="mb-0"><i class="bi bi-check-circle me-2"></i>GD is available - image thumbnails generate automatically at upload time.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="config-soft-callout config-soft-callout--warning">
+                        <p class="mb-2"><i class="bi bi-exclamation-triangle me-2"></i>PHP GD is missing, so image thumbnails are skipped.</p>
+                        <p class="mb-0">Ask your host to enable the <code>gd</code> extension, then uploads start producing thumbnails with no further setup.</p>
+                    </div>
+                <?php endif; ?>
             </div>
             <div class="col-lg-6 mb-4">
                 <label class="form-label fw-bold">Video Thumbnails</label>
-                <div class="config-soft-callout config-soft-callout--warning">
-                    <p class="mb-2"><i class="bi bi-camera-video me-2"></i>Video thumbnail generation is also coming later.</p>
-                    <p class="mb-0">FFmpeg is still worth planning for now, but shared hosting often does not support it because the host may not provide the binary or may block <code>shell_exec</code> and similar PHP process functions.</p>
-                </div>
+                <?php if (!empty($ffmpegOk)): ?>
+                    <div class="config-soft-callout config-soft-callout--success">
+                        <p class="mb-0"><i class="bi bi-check-circle me-2"></i>FFmpeg is configured - video thumbnails generate automatically at upload time.</p>
+                    </div>
+                <?php else: ?>
+                    <div class="config-soft-callout config-soft-callout--warning">
+                        <p class="mb-2"><i class="bi bi-camera-video me-2"></i>Video thumbnails need the FFmpeg binary set below.</p>
+                        <p class="mb-0">Shared hosting often does not provide FFmpeg or blocks <code>shell_exec</code> - on those plans video uploads simply skip thumbnails and keep working.</p>
+                    </div>
+                <?php endif; ?>
             </div>
         </div>
     <?php renderAdminCardEnd(); ?>
 
     <div id="general-transcoding"></div>
-    <?php renderAdminCardStart('Video Transcoding', ['cardClass' => 'border-0 shadow-sm mb-4 config-section-card']); ?>
-        <div class="config-soft-callout config-soft-callout--info">
-            <h6 class="fw-bold mb-2"><i class="bi bi-hourglass-split me-2"></i>Coming soon</h6>
-            <p class="mb-2">Server-side video transcoding is not available in this build yet.</p>
-            <p class="mb-0">We are intentionally holding both transcoding and thumbnail-generation controls until the underlying conversion workflow is ready for a later release.</p>
+    <?php renderAdminCardStart('Video Transcoding (HLS)', ['cardClass' => 'border-0 shadow-sm mb-4 config-section-card']); ?>
+        <div class="form-check form-switch mb-3">
+            <input class="form-check-input" type="checkbox" name="video_transcode_enabled" id="videoTranscodeEnabled" value="1" <?= (($transcodeEnabled ?? '0') === '1') ? 'checked' : '' ?>>
+            <label class="form-check-label fw-bold" for="videoTranscodeEnabled">Enable HLS Transcoding</label>
+            <div class="config-form-note mt-1">Turns uploads into adaptive multi-quality streams played through <code>/stream/hls/</code> and the <code>/embed/</code> player. The cron heartbeat picks up pending jobs automatically.</div>
+        </div>
+        <div class="row">
+            <div class="col-lg-6 mb-4">
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" name="ffmpeg_enabled" id="ffmpegEnabled" value="1" <?= (($ffmpegEnabled ?? '1') === '1') ? 'checked' : '' ?>>
+                    <label class="form-check-label fw-bold" for="ffmpegEnabled">Enable FFmpeg</label>
+                </div>
+                <label class="form-label fw-bold" for="ffmpegPath">FFmpeg Binary Path</label>
+                <input type="text" class="form-control font-monospace" name="ffmpeg_path" id="ffmpegPath" value="<?= htmlspecialchars((string)($ffmpegPath ?? '')) ?>" placeholder="/usr/bin/ffmpeg">
+                <div class="config-form-note mt-1">
+                    <?php if (!empty($ffmpegOk)): ?>
+                        <span class="text-success"><i class="bi bi-check-circle me-1"></i>Binary found and ready.</span>
+                    <?php else: ?>
+                        <span class="text-warning"><i class="bi bi-exclamation-triangle me-1"></i>Binary not found at this path. Run <code>which ffmpeg</code> over SSH, or leave it empty on hosts without FFmpeg.</span>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-4">
+                <label class="form-label fw-bold" for="transcodeResolutions">Rendition Ladder (heights, px)</label>
+                <input type="text" class="form-control font-monospace" name="transcode_resolutions" id="transcodeResolutions" value="<?= htmlspecialchars((string)($transcodeResolutions ?? '1080')) ?>" placeholder="360,480,720,1080">
+                <div class="config-form-note mt-1">Comma-separated heights from 144 to 2160. Sources are never upscaled past their own resolution. Fewer renditions = faster jobs + less storage.</div>
+            </div>
+        </div>
+        <div class="config-soft-callout mb-0">
+            <div class="fw-bold mb-1">Transcode queue<?= (!empty($transcodeCounts['pending']) || !empty($transcodeCounts['processing'])) ? ' - working through jobs' : '' ?></div>
+            <?php if ($transcodeCounts['pending'] === null): ?>
+                <span class="small text-muted">Queue stats appear after Database Health &gt; Deep Repair creates the jobs table.</span>
+            <?php else: ?>
+                <span class="small text-muted">
+                    Pending <?= (int)$transcodeCounts['pending'] ?> &middot;
+                    Processing <?= (int)$transcodeCounts['processing'] ?> &middot;
+                    Ready <?= (int)$transcodeCounts['ready'] ?> &middot;
+                    Failed <?= (int)$transcodeCounts['failed'] ?>
+                </span>
+            <?php endif; ?>
         </div>
     <?php renderAdminCardEnd(); ?>
 

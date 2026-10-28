@@ -7,6 +7,7 @@ $adBottom = $adBottom ?? '';
 $adOverlay = $adOverlay ?? '';
 $adPopunder = $adPopunder ?? '';
 $adNative = $adNative ?? '';
+$adTierCodes = $adTierCodes ?? [];
 $adGeoRules = $adGeoRules ?? [];
 $adLoadTier = in_array(($adLoadTier ?? 'full'), ['full', '75', '50', '25', 'zero'], true) ? $adLoadTier : 'full';
 $adLoadTier = in_array(($adLoadTier ?? 'full'), ['full', '75', '50', '25', 'zero'], true) ? $adLoadTier : 'full';
@@ -955,10 +956,42 @@ $rewardsActive = true;
             </div>
 
             <div class="config-sticky-save">
-                <p class="config-sticky-save__text">Base ad codes run everywhere unless a geo rule below overrides them. Base slot visibility still follows the ad load tier above.</p>
+                <p class="config-sticky-save__text">Base ad codes run everywhere unless a tier code or geo rule below overrides them. Base slot visibility still follows the ad load tier above.</p>
                 <button type="submit" class="btn btn-primary px-5">Save Ad Placements</button>
             </div>
         </form>
+
+        <!-- Per-tier ad codes: a different tag per intensity level -->
+        <div class="card border-0 shadow-sm config-section-card mt-4">
+            <div class="card-body">
+                <div class="mb-3">
+                    <h6 class="fw-bold mb-1">Ad Codes Per Tier (optional)</h6>
+                    <div class="config-form-note">Paste a different tag per intensity level - e.g. your premium PopAds tag under Full, a lighter one under 25%. Blank = fall back to the base code above. Geo-rule codes still win over these for matching visitors.</div>
+                </div>
+                <form method="POST" action="/admin/configuration/save">
+                    <?= \App\Core\Csrf::field() ?>
+                    <input type="hidden" name="section" value="monetization">
+                    <input type="hidden" name="monetization_action" value="ads">
+                    <?php foreach (['full' => 'Full · 100%', '75' => '75%', '50' => '50%', '25' => '25%', 'zero' => '0% · pop only'] as $tierKey => $tierLabel): ?>
+                    <div class="border rounded-3 p-3 mb-3">
+                        <div class="fw-bold mb-2"><?= $tierLabel ?></div>
+                        <div class="row g-3">
+                            <?php foreach (['popunder' => 'Popunder', 'top' => 'Top banner', 'bottom' => 'Bottom banner', 'native' => 'Floating native', 'overlay' => 'Overlay'] as $slotKey => $slotLabel): ?>
+                            <div class="col-md-6">
+                                <label class="form-label"><?= $slotLabel ?></label>
+                                <textarea class="form-control font-monospace" rows="2" name="tier_codes[<?= $tierKey ?>][<?= $slotKey ?>]"><?= htmlspecialchars((string)(($adTierCodes[$tierKey][$slotKey] ?? ''))) ?></textarea>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endforeach; ?>
+                    <div class="config-sticky-save">
+                        <p class="config-sticky-save__text">Tier codes only render when that tier is the effective one for the view. Sidebars always use the base codes.</p>
+                        <button type="submit" class="btn btn-primary px-5">Save Tier Codes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
 
         <!-- Geo ad rules: multiple codes + per-country overrides -->
         <div class="card border-0 shadow-sm config-section-card mt-4">
